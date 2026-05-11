@@ -25,6 +25,7 @@ function makeDefaultTeam(index: number): Team {
     anchoredThisRound: false,
     doubleStepThisRound: false,
     turboThisRound: false,
+    consecutiveFirstPlace: 0,
   }
 }
 
@@ -57,6 +58,7 @@ const initialState: GameState = {
   preRoundSnapshot: null,
   lapBonusPending: null,
   pendingCollisionForAfter: null,
+  streakShopTeamId: null,
 }
 
 interface GameStore extends GameState {
@@ -85,6 +87,7 @@ interface GameStore extends GameState {
   confirmEvent: () => void
   buyItem: (itemType: import('../types').ItemType, overrideTeamId?: string) => void
   closeShop: () => void
+  closeStreakShop: () => void
   nextRound: () => void
   newGame: () => void
   goBackToPreviousDecision: () => void
@@ -154,6 +157,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       anchoredThisRound: false,
       doubleStepThisRound: false,
       turboThisRound: false,
+      // consecutiveFirstPlace is preserved — reset in confirmPlacements
     }))
     set({ teams: reset, phase: 'placementInput' })
   },
@@ -209,16 +213,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       awards[team.id] = amount
     }
 
+    // ── Streak tracking ─────────────────────────────────────────────────────
+    let streakShopTeamId: string | null = null
+    const teamsWithStreak = teamsWithPlacements.map((t) => {
+      if (t.placement === 1) {
+        const newStreak = t.consecutiveFirstPlace + 1
+        if (newStreak >= 2) {
+          streakShopTeamId = t.id
+          // Mega-streak bonus crystals (3rd+ consecutive win)
+          if (newStreak >= 3) awards[t.id] = (awards[t.id] ?? 0) + 50
+        }
+        return { ...t, consecutiveFirstPlace: newStreak }
+      }
+      return { ...t, consecutiveFirstPlace: 0 }
+    })
+
     set({
       crystalAwards: awards,
-      teams: teamsWithPlacements,
+      teams: teamsWithStreak,
       darkRoundActive: nextRoundDark,
       nextRoundDark: false,
       bountyTargetTeamId: null,
       teamSwapPending: null,
       doubleOrNothingPending: null,
       preRoundSnapshot,
-      phase: 'crystalAward',
+      streakShopTeamId,
+      phase: streakShopTeamId ? 'streakShop' : 'crystalAward',
     })
   },
 
@@ -557,6 +577,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     )
     set({ teams: updated })
   },
+
+  closeStreakShop: () => set({ streakShopTeamId: null, phase: 'crystalAward' }),
 
   closeShop: () => {
     const { pendingCollisionForAfter, lapBonusPending } = get()

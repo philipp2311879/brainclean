@@ -15,6 +15,8 @@ import { WalkingScreen } from './components/screens/WalkingScreen'
 import { MapSetupScreen } from './components/screens/MapSetupScreen'
 import { RoundEndScreen } from './components/screens/RoundEndScreen'
 import { GameOverScreen } from './components/screens/GameOverScreen'
+import { StreakShopScreen } from './components/screens/StreakShopScreen'
+import { DatabaseBootstrap } from './components/bootstrap/DatabaseBootstrap'
 
 const MAP_BUTTON_PHASES = new Set([
   'minigameAnnounce', 'minigameActive', 'placementInput',
@@ -31,6 +33,7 @@ function Screen() {
     case 'minigameAnnounce': return <MinigameScreen />
     case 'minigameActive':   return <MinigameScreen />
     case 'placementInput':   return <PlacementScreen />
+    case 'streakShop':       return <StreakShopScreen />
     case 'crystalAward':     return <CrystalAwardScreen />
     case 'itemPhase':        return <ItemPhaseScreen />
     case 'rolling':          return <RollingScreen />
@@ -111,6 +114,7 @@ export default function App() {
   const { showInfoOverlay, setShowInfoOverlay } = useGameStore()
 
   return (
+    <DatabaseBootstrap>
     <div className="w-screen h-screen overflow-hidden relative">
       <HeaderBar />
       <AnimatePresence mode="wait">
@@ -132,5 +136,6 @@ export default function App() {
         {showInfoOverlay && <InfoOverlay onClose={() => setShowInfoOverlay(false)} />}
       </AnimatePresence>
     </div>
+    </DatabaseBootstrap>
   )
 }

@@ -10,7 +10,7 @@ const BACK_PHASES = new Set([
 ])
 const INFO_PHASES = new Set([
   'minigameAnnounce', 'minigameActive', 'placementInput',
-  'crystalAward', 'itemPhase', 'rolling', 'walking', 'roundEnd',
+  'crystalAward', 'itemPhase', 'rolling', 'walking', 'roundEnd', 'streakShop',
 ])
 
 // ── Animated crystal counter per team ────────────────────────────────────────
@@ -61,6 +61,10 @@ function CrystalCounter({ team }: { team: Team }) {
   const isLoss = delta !== null && delta < 0
   const textColor = isGain ? '#10b981' : isLoss ? '#ef4444' : team.avatar.color
 
+  const streakFlames = team.consecutiveFirstPlace >= 2
+    ? '🔥'.repeat(Math.min(team.consecutiveFirstPlace - 1, 4))
+    : ''
+
   return (
     <div
       className="flex items-center gap-2 rounded-xl px-3 py-1.5 border-2 relative select-none"
@@ -69,7 +73,7 @@ function CrystalCounter({ team }: { team: Team }) {
       <span className="text-xl leading-none">{team.avatar.emoji}</span>
       <div className="flex flex-col leading-none">
         <span className="text-[10px] font-body text-[#475569] font-bold leading-none mb-0.5 truncate max-w-[60px]">
-          {team.name}
+          {team.name}{streakFlames && <span className="ml-0.5">{streakFlames}</span>}
         </span>
         <motion.span
           animate={isGain || isLoss ? { scale: [1, 1.25, 1] } : { scale: 1 }}
@@ -113,6 +117,7 @@ export function HeaderBar() {
   } = useGameStore()
 
   if (phase === 'title' || phase === 'setup' || phase === 'teamSetup' || phase === 'mapSetup') return null
+
 
   const showBack = BACK_PHASES.has(phase)
   const showInfo = INFO_PHASES.has(phase)

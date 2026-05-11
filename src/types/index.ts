@@ -6,6 +6,7 @@ export type GamePhase =
   | 'minigameAnnounce'
   | 'minigameActive'
   | 'placementInput'
+  | 'streakShop'
   | 'crystalAward'
   | 'itemPhase'
   | 'rolling'
@@ -79,6 +80,17 @@ export interface Team {
   anchoredThisRound: boolean
   doubleStepThisRound: boolean
   turboThisRound: boolean
+  consecutiveFirstPlace: number
+}
+
+export interface Minigame {
+  id: number
+  name: string
+  description: string
+  video_url: string | null
+  has_audio: boolean
+  category: string | null
+  created_at: string
 }
 
 export interface EventData {
@@ -144,4 +156,5 @@ export interface GameState {
   lapBonusPending: { teamId: string; amount: number } | null
   pendingCollisionForAfter: CollisionPending | null
   showInfoOverlay: boolean
+  streakShopTeamId: string | null
 }
