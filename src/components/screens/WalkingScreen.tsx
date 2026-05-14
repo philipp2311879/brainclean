@@ -6,6 +6,9 @@ import { Button } from '../ui/Button'
 import { ShopOverlay } from '../overlays/ShopOverlay'
 import { EventOverlay } from '../overlays/EventOverlay'
 import { FIELD_TOTAL } from '../../utils/mapGenerator'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
+import { soundManager } from '../../lib/soundManager'
 
 const STEP_DELAY       = 600
 const HIGHLIGHT_HOLD   = 200
@@ -79,20 +82,21 @@ export function WalkingScreen() {
       const isShopHere = fields[nextPos]?.type === 'shop'
 
       if (isLastStep) {
-        // Land on the last field — trigger normal field processing (including shop if it's a shop field)
+        soundManager.playSFX('land')
         setTimeout(() => {
           setHighlightField(undefined)
           setIsMoving(false)
           advanceWalkingTeam(nextPos, startPos + total >= FIELD_TOTAL)
         }, LAST_FIELD_PAUSE)
       } else if (isShopHere) {
-        // PASSING THROUGH a shop field mid-walk — pause and open shop
+        soundManager.playSFX('step')
         setTimeout(() => {
           setHighlightField(undefined)
           setIsMoving(false)
           setMidWalkShop({ startPos, step: nextStep, total })
         }, HIGHLIGHT_HOLD + 200)
       } else {
+        soundManager.playSFX('step')
         setTimeout(() => setHighlightField(undefined), HIGHLIGHT_HOLD)
         moveStep(startPos, nextStep, total)
       }
@@ -110,11 +114,26 @@ export function WalkingScreen() {
     }, 300)
   }
 
-  // Clear animation state when an effect popup appears
+  // Clear animation state when an effect popup appears + play SFX
   useEffect(() => {
-    if (fieldEffectPending || collisionPending || lapBonusPending) {
+    if (fieldEffectPending) {
       setAnimatingPosition(undefined)
       setIsMoving(false)
+      if (fieldEffectPending.crystalDelta > 0) soundManager.playSFX('crystal_gain')
+      else if (fieldEffectPending.crystalDelta < 0) {
+        // Mine trap vs normal trap
+        const isMine = fieldEffectPending.fieldType === 'trap' && fieldEffectPending.crystalDelta === -120
+        soundManager.playSFX(isMine ? 'mine_explode' : 'crystal_lose')
+      }
+    }
+    if (collisionPending) {
+      setAnimatingPosition(undefined)
+      setIsMoving(false)
+    }
+    if (lapBonusPending) {
+      setAnimatingPosition(undefined)
+      setIsMoving(false)
+      soundManager.playSFX('crystal_gain')
     }
   }, [fieldEffectPending, collisionPending, lapBonusPending])
 
@@ -123,6 +142,7 @@ export function WalkingScreen() {
     if (!collisionPending) { setCollisionStep('bang'); return }
     clearTimeout(collisionTimerRef.current)
     setCollisionStep('bang')
+    soundManager.playSFX(collisionPending.blocked ? 'shield_block' : 'collision')
     collisionTimerRef.current = setTimeout(() => {
       setCollisionStep('transfer')
       collisionTimerRef.current = setTimeout(() => setCollisionStep('result'), 1500)
@@ -139,12 +159,12 @@ export function WalkingScreen() {
     <div className="w-full h-full flex flex-col pt-16 screen-base">
       {/* Team banner */}
       <div className="px-5 py-2.5 flex items-center gap-3 bg-white border-b border-[#e5e7eb] shadow-card flex-shrink-0">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border-2 flex-shrink-0"
-          style={{ background: currentTeam.avatar.bgColor, borderColor: currentTeam.avatar.color, boxShadow: `0 0 12px ${currentTeam.avatar.color}44` }}
-        >
-          {currentTeam.avatar.emoji}
-        </div>
+        <AvatarRingWrapper
+          avatar={currentTeam.avatar}
+          jerseyColor={currentTeam.jerseyColor}
+          outerSize={48}
+          style={{ boxShadow: `0 0 12px ${resolveTeamColor(currentTeam.jerseyColor, currentTeam.avatar.color)}44`, flexShrink: 0 }}
+        />
         <div>
           <span className="font-display text-[#0f172a] text-xl">{currentTeam.name}</span>
           <span className="text-[#475569] font-body text-sm ml-2">
@@ -155,7 +175,7 @@ export function WalkingScreen() {
         <div className="ml-4 flex gap-1.5 flex-wrap max-w-xs">
           {Array.from({ length: Math.min(dice, 12) }, (_, i) => (
             <div key={i} className="w-3 h-3 rounded-full transition-all duration-300"
-              style={{ background: i < currentStep ? currentTeam.avatar.color : '#e2e8f0', boxShadow: i < currentStep ? `0 0 6px ${currentTeam.avatar.color}` : 'none' }} />
+              style={{ background: i < currentStep ? resolveTeamColor(currentTeam.jerseyColor, currentTeam.avatar.color) : '#e2e8f0', boxShadow: i < currentStep ? `0 0 6px ${resolveTeamColor(currentTeam.jerseyColor, currentTeam.avatar.color)}` : 'none' }} />
           ))}
           {dice > 12 && <span className="text-[#94a3b8] text-xs font-body">+{dice - 12}</span>}
         </div>
@@ -165,9 +185,13 @@ export function WalkingScreen() {
             const t = teams.find((x) => x.id === id)
             if (!t) return null
             return (
-              <div key={id} className="w-9 h-9 rounded-full flex items-center justify-center text-lg border-2 transition-all"
-                style={{ borderColor: t.avatar.color, background: idx === walkingTeamIndex ? t.avatar.bgColor : 'white', opacity: idx < walkingTeamIndex ? 0.35 : 1, boxShadow: idx === walkingTeamIndex ? `0 0 10px ${t.avatar.color}66` : 'none' }}>
-                {t.avatar.emoji}
+              <div key={id} style={{ opacity: idx < walkingTeamIndex ? 0.35 : 1 }}>
+                <AvatarRingWrapper
+                  avatar={t.avatar}
+                  jerseyColor={t.jerseyColor}
+                  outerSize={36}
+                  style={{ boxShadow: idx === walkingTeamIndex ? `0 0 10px ${resolveTeamColor(t.jerseyColor, t.avatar.color)}66` : 'none' }}
+                />
               </div>
             )
           })}
@@ -203,7 +227,7 @@ export function WalkingScreen() {
 
               <div className="flex items-center justify-center gap-4 mb-4">
                 <motion.div animate={collisionStep === 'transfer' && !collisionPending.blocked ? { x: [0, 12, 0] } : {}} transition={{ duration: 0.6, repeat: 2 }} className="flex flex-col items-center gap-1">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border-2" style={{ background: attackerTeam.avatar.bgColor, borderColor: attackerTeam.avatar.color }}>{attackerTeam.avatar.emoji}</div>
+                  <AvatarRingWrapper avatar={attackerTeam.avatar} jerseyColor={attackerTeam.jerseyColor} outerSize={64} />
                   <span className="font-display text-xs text-[#475569]">{attackerTeam.name}</span>
                 </motion.div>
                 <div className="relative w-20 flex items-center justify-center">
@@ -213,7 +237,7 @@ export function WalkingScreen() {
                   <span className="text-[#d1d5db] text-2xl">→</span>
                 </div>
                 <motion.div animate={collisionStep === 'transfer' && !collisionPending.blocked ? { x: [0, -12, 0] } : {}} transition={{ duration: 0.6, repeat: 2 }} className="flex flex-col items-center gap-1">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border-2" style={{ background: defenderTeam.avatar.bgColor, borderColor: defenderTeam.avatar.color }}>{defenderTeam.avatar.emoji}</div>
+                  <AvatarRingWrapper avatar={defenderTeam.avatar} jerseyColor={defenderTeam.jerseyColor} outerSize={64} />
                   <span className="font-display text-xs text-[#475569]">{defenderTeam.name}</span>
                 </motion.div>
               </div>
@@ -226,9 +250,9 @@ export function WalkingScreen() {
                     <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
                       <div className="font-display text-5xl mb-1" style={{ color: '#10b981' }}>+{collisionPending.crystalsStolen} 💎</div>
                       <p className="text-[#475569] font-body text-base">
-                        <strong style={{ color: attackerTeam.avatar.color }}>{attackerTeam.name}</strong>
+                        <strong style={{ color: resolveTeamColor(attackerTeam.jerseyColor, attackerTeam.avatar.color) }}>{attackerTeam.name}</strong>
                         {' stiehlt von '}
-                        <strong style={{ color: defenderTeam.avatar.color }}>{defenderTeam.name}</strong>!
+                        <strong style={{ color: resolveTeamColor(defenderTeam.jerseyColor, defenderTeam.avatar.color) }}>{defenderTeam.name}</strong>!
                       </p>
                     </motion.div>
                   )}
@@ -271,7 +295,42 @@ export function WalkingScreen() {
       <AnimatePresence>
         {fieldEffectPending && !currentEvent && !shopTeamId && !collisionPending && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/25 flex items-center justify-center z-40">
+            className="fixed inset-0 flex items-center justify-center z-40"
+            style={{ background: fieldEffectPending.isMine ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.25)' }}>
+
+            {/* ── MINE BOOM popup ── */}
+            {fieldEffectPending.isMine ? (
+              <motion.div
+                initial={{ scale: 0.3, y: 60 }}
+                animate={{ scale: 1, y: 0, x: [0, -12, 12, -8, 8, -4, 4, 0] }}
+                exit={{ scale: 0.7, opacity: 0 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                className="card p-10 text-center max-w-sm w-full mx-4"
+                style={{ borderWidth: 4, borderColor: '#ef4444', background: '#fff1f2' }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.4, 0.9, 1.2, 1], rotate: [0, -8, 8, -4, 0] }}
+                  transition={{ duration: 0.6, repeat: 1 }}
+                  className="text-8xl mb-4"
+                >
+                  💥
+                </motion.div>
+                <h2 className="font-display text-5xl text-[#ef4444] mb-2">BOOM!</h2>
+                <p className="text-[#475569] font-body text-lg mb-4">
+                  <strong style={{ color: resolveTeamColor(teams.find((t) => t.id === fieldEffectPending.teamId)?.jerseyColor ?? null, teams.find((t) => t.id === fieldEffectPending.teamId)?.avatar.color ?? '#0f172a') }}>
+                    {teams.find((t) => t.id === fieldEffectPending.teamId)?.name}
+                  </strong>
+                  {' ist auf eine MINE gelaufen!'}
+                </p>
+                <motion.div
+                  initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }}
+                  className="font-display text-6xl mb-5" style={{ color: '#ef4444' }}
+                >
+                  {fieldEffectPending.crystalDelta} 💎
+                </motion.div>
+                <Button onClick={confirmFieldEffect} size="lg" fullWidth>WEITER →</Button>
+              </motion.div>
+            ) : (
             <motion.div initial={{ scale: 0.5, y: 50 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.85, opacity: 0 }} transition={{ type: 'spring', damping: 22 }}
               className="card p-8 text-center max-w-sm w-full mx-4"
               style={{ borderWidth: 2, borderColor: fieldEffectPending.fieldType === 'bonus' ? '#3b82f6' : fieldEffectPending.fieldType === 'trap' ? '#ef4444' : '#e5e7eb' }}>
@@ -284,6 +343,7 @@ export function WalkingScreen() {
               <div className="font-display text-2xl text-[#0f172a] mb-2">
                 {fieldEffectPending.fieldType === 'bonus' && 'BONUS-FELD!'}
                 {fieldEffectPending.fieldType === 'trap' && 'FALLEN-FELD!'}
+                {fieldEffectPending.fieldType === 'item' && 'ITEM-FELD!'}
                 {fieldEffectPending.fieldType === 'normal' && 'Normales Feld'}
               </div>
               {fieldEffectPending.crystalDelta > 0 && (
@@ -305,6 +365,7 @@ export function WalkingScreen() {
               )}
               <Button onClick={confirmFieldEffect} size="lg" fullWidth className="mt-2">WEITER →</Button>
             </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

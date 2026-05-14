@@ -1,8 +1,11 @@
+import type { AchievementProgress, AchievementQueueItem } from '../lib/achievements'
+
 export type GamePhase =
   | 'title'
   | 'setup'
   | 'teamSetup'
   | 'mapSetup'
+  | 'finaleAnnounce'
   | 'minigameAnnounce'
   | 'minigameActive'
   | 'placementInput'
@@ -29,7 +32,9 @@ export type ItemType =
 
 export interface Avatar {
   id: string
-  emoji: string
+  type: 'emoji' | 'image'
+  emoji?: string   // set for type='emoji'
+  src?: string     // set for type='image', e.g. '/avatars/potato.png'
   name: string
   color: string
   bgColor: string
@@ -70,6 +75,7 @@ export interface Team {
   id: string
   name: string
   avatar: Avatar
+  jerseyColor: string | null   // hex or 'rainbow'; null = not yet chosen during setup
   crystals: number
   position: number
   items: Item[]
@@ -125,6 +131,7 @@ export interface FieldEffectPending {
   crystalDelta: number
   itemFound?: Item
   lapBonus?: number
+  isMine?: boolean  // dedicated BOOM popup instead of generic trap popup
 }
 
 export interface GameState {
@@ -157,4 +164,13 @@ export interface GameState {
   pendingCollisionForAfter: CollisionPending | null
   showInfoOverlay: boolean
   streakShopTeamId: string | null
+  // Finale
+  finaleActive: boolean
+  // Achievements
+  achievementProgress: AchievementProgress
+  unlockedAchievements: Record<string, boolean>   // key = achievementId or achievementId_teamId
+  achievementQueue: AchievementQueueItem[]
 }
+
+// Re-export so consumers can import from types
+export type { AchievementProgress, AchievementQueueItem }

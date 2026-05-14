@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
+import { SoundControl } from './SoundControl'
+import { AvatarRingWrapper } from './AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
 import type { Team } from '../../types'
 
 // ── Phases where back / info button appear ──────────────────────────────────
@@ -59,7 +62,9 @@ function CrystalCounter({ team }: { team: Team }) {
 
   const isGain = delta !== null && delta > 0
   const isLoss = delta !== null && delta < 0
-  const textColor = isGain ? '#10b981' : isLoss ? '#ef4444' : team.avatar.color
+  const jc = team.jerseyColor
+  const tColor = resolveTeamColor(jc, team.avatar.color)
+  const textColor = isGain ? '#10b981' : isLoss ? '#ef4444' : tColor
 
   const streakFlames = team.consecutiveFirstPlace >= 2
     ? '🔥'.repeat(Math.min(team.consecutiveFirstPlace - 1, 4))
@@ -68,9 +73,9 @@ function CrystalCounter({ team }: { team: Team }) {
   return (
     <div
       className="flex items-center gap-2 rounded-xl px-3 py-1.5 border-2 relative select-none"
-      style={{ background: '#f8fafc', borderColor: team.avatar.color, minWidth: 90 }}
+      style={{ background: '#f8fafc', borderColor: tColor, minWidth: 90 }}
     >
-      <span className="text-xl leading-none">{team.avatar.emoji}</span>
+      <AvatarRingWrapper avatar={team.avatar} jerseyColor={jc} outerSize={32} />
       <div className="flex flex-col leading-none">
         <span className="text-[10px] font-body text-[#475569] font-bold leading-none mb-0.5 truncate max-w-[60px]">
           {team.name}{streakFlames && <span className="ml-0.5">{streakFlames}</span>}
@@ -157,8 +162,9 @@ export function HeaderBar() {
         </span>
       </div>
 
-      {/* Right: team score counters */}
+      {/* Right: sound control + team score counters */}
       <div className="flex gap-2 items-center flex-shrink-0">
+        <SoundControl />
         {teams.map((team) => (
           <CrystalCounter key={team.id} team={team} />
         ))}

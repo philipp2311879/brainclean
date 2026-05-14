@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import type { Field, Team, Mine } from '../../types'
 import { POSITIONS } from '../../utils/mapGenerator'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
 
 interface GameBoardProps {
   fields: Field[]
@@ -141,7 +143,6 @@ export function GameBoard({
       {fields.map((field) => {
         const isJackpot = jackpotFieldIndex === field.index
         const isHighlight = highlightField === field.index
-        const hasMine = activeMines.some((m) => m.fieldIndex === field.index)
         const teamsHere = teamsByPos[field.index] ?? []
 
         const style: FieldStyle = isJackpot
@@ -203,9 +204,7 @@ export function GameBoard({
                 </span>
               )}
 
-              {hasMine && (
-                <span className="absolute -top-2 -right-2 text-sm bg-white rounded-full border border-red-300 p-0.5">💣</span>
-              )}
+              {/* Mines are invisible to all players */}
             </motion.div>
 
             {/* Avatars */}
@@ -229,18 +228,17 @@ export function GameBoard({
                           ? { type: 'spring', stiffness: 420, damping: 18, mass: 0.7 }
                           : { type: 'spring', stiffness: 500, damping: 22 }
                       }
-                      className="rounded-full flex items-center justify-center border-2"
                       style={{
-                        width: avSz, height: avSz,
-                        background: team.avatar.bgColor,
-                        borderColor: team.avatar.color,
-                        boxShadow: `0 3px 10px ${team.avatar.color}66`,
-                        fontSize: Math.round(avSz * 0.6),
                         zIndex: idx + 1,
                         marginLeft: idx > 0 ? -Math.round(avSz * 0.28) : 0,
                       }}
                     >
-                      {team.avatar.emoji}
+                      <AvatarRingWrapper
+                        avatar={team.avatar}
+                        jerseyColor={team.jerseyColor}
+                        outerSize={avSz}
+                        style={{ boxShadow: `0 3px 10px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}66` }}
+                      />
                     </motion.div>
                   )
                 })}

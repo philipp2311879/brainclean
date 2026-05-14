@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../ui/Button'
 import { useGameStore } from '../../store/gameStore'
 import type { EventData, Team } from '../../types'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
+import { soundManager } from '../../lib/soundManager'
+
+function EvtAvatar({ team, size = 48 }: { team: Team; size?: number }) {
+  return <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={size} />
+}
 
 interface EventOverlayProps {
   event: EventData
@@ -47,7 +54,7 @@ function CrystalRainTeams({ teams }: { teams: Team[] }) {
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2"
           style={{ borderColor: '#10b981', background: '#f0fdf4' }}
         >
-          <span className="text-xl">{t.avatar.emoji}</span>
+          <EvtAvatar team={t} size={28} />
           <span className="font-display text-lg text-[#10b981]">+50 💎</span>
         </motion.div>
       ))}
@@ -67,7 +74,7 @@ function TaxAnim({ teams }: { teams: Team[] }) {
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2"
           style={{ borderColor: '#ef4444', background: '#fee2e2' }}
         >
-          <span className="text-xl">{t.avatar.emoji}</span>
+          <EvtAvatar team={t} size={28} />
           <span className="font-display text-lg text-[#ef4444]">−25%</span>
         </motion.div>
       ))}
@@ -88,7 +95,7 @@ function RevolutionAnim({ teams }: { teams: Team[] }) {
         transition={{ duration: 1.2, repeat: 2 }}
         className="flex flex-col items-center gap-1"
       >
-        <span className="text-4xl">{richest.avatar.emoji}</span>
+        <EvtAvatar team={richest} size={52} />
         <span className="font-display text-base text-[#f59e0b]">{richest.crystals} 💎</span>
         <span className="text-xs text-[#475569] font-body">reich</span>
       </motion.div>
@@ -104,7 +111,7 @@ function RevolutionAnim({ teams }: { teams: Team[] }) {
         transition={{ duration: 1.2, repeat: 2 }}
         className="flex flex-col items-center gap-1"
       >
-        <span className="text-4xl">{poorest.avatar.emoji}</span>
+        <EvtAvatar team={poorest} size={52} />
         <span className="font-display text-base text-[#94a3b8]">{poorest.crystals} 💎</span>
         <span className="text-xs text-[#475569] font-body">arm</span>
       </motion.div>
@@ -125,9 +132,8 @@ function EarthquakeAnim({ teams }: { teams: Team[] }) {
             key={t.id}
             animate={{ y: [0, -14, 0, -9, 0], rotate: [0, -10, 10, -5, 0] }}
             transition={{ duration: 0.6, delay: i * 0.12, repeat: 2 }}
-            className="text-3xl"
           >
-            {t.avatar.emoji}
+            <EvtAvatar team={t} size={40} />
           </motion.div>
         ))}
       </motion.div>
@@ -142,10 +148,10 @@ function EarthquakeAnim({ teams }: { teams: Team[] }) {
           <div
             key={t.id}
             className="flex items-center gap-1 px-2 py-1 rounded-lg border-2 text-sm"
-            style={{ borderColor: t.avatar.color, background: t.avatar.bgColor }}
+            style={{ borderColor: resolveTeamColor(t.jerseyColor, t.avatar.color), background: '#ffffff' }}
           >
-            <span>{t.avatar.emoji}</span>
-            <span className="font-display" style={{ color: t.avatar.color }}>→ Feld {t.position}</span>
+            <EvtAvatar team={t} size={22} />
+            <span className="font-display" style={{ color: resolveTeamColor(t.jerseyColor, t.avatar.color) }}>→ Feld {t.position}</span>
           </div>
         ))}
       </motion.div>
@@ -189,9 +195,9 @@ function BountyAnim({ teams, bountyTargetTeamId }: { teams: Team[]; bountyTarget
       <motion.div
         animate={{ scale: [1, 1.12, 1] }}
         transition={{ duration: 0.7, repeat: Infinity }}
-        className="text-4xl mb-1"
+        className="mb-1 flex justify-center"
       >
-        {target.avatar.emoji}
+        <EvtAvatar team={target} size={52} />
       </motion.div>
       <div className="font-display text-2xl text-[#ef4444]">{target.name}</div>
       <div className="font-body text-[#b91c1c] text-sm mt-1">
@@ -227,6 +233,13 @@ export function EventOverlay({ event, onConfirm }: EventOverlayProps) {
 
   useEffect(() => {
     const t = setTimeout(() => setCanConfirm(true), AUTO_CONFIRM_DELAY)
+    // Play event-specific SFX
+    switch (event.id) {
+      case 'earthquake':    soundManager.playSFX('earthquake'); break
+      case 'revolution':    soundManager.playSFX('revolution'); break
+      case 'crystal_rain':  soundManager.playSFX('crystal_rain'); break
+      default:              soundManager.playSFX('event'); break
+    }
     return () => clearTimeout(t)
   }, [])
 

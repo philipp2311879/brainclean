@@ -1,14 +1,22 @@
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { SHOP_ITEMS, ITEM_DEFS } from '../../data/items'
 import type { ItemType } from '../../types'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { soundManager } from '../../lib/soundManager'
 
 interface ShopOverlayProps { teamId: string; onClose: () => void }
 
 export function ShopOverlay({ teamId, onClose }: ShopOverlayProps) {
   const { teams, buyItem } = useGameStore()
   const team = teams.find((t) => t.id === teamId)
+
+  useEffect(() => {
+    soundManager.playSFX('shop_open')
+  }, [])
+
   if (!team) return null
 
   return (
@@ -22,11 +30,11 @@ export function ShopOverlay({ teamId, onClose }: ShopOverlayProps) {
         style={{ borderColor: '#f97316', borderWidth: 2 }}
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-[#ffedd5] flex items-center justify-center text-4xl border-2 border-[#f97316] flex-shrink-0">🏪</div>
+          <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={56} style={{ flexShrink: 0 }} />
           <div>
             <h2 className="font-display text-3xl text-[#0f172a]">ARENA-SHOP</h2>
             <p className="text-[#475569] font-body text-base">
-              {team.avatar.emoji} {team.name} · <strong className="text-[#0f172a]">{team.crystals}</strong> 💎
+              {team.name} · <strong className="text-[#0f172a]">{team.crystals}</strong> 💎
               {team.items.length >= 3 && <span className="text-[#ef4444] ml-2 font-bold">Inventar voll!</span>}
             </p>
           </div>
@@ -46,7 +54,7 @@ export function ShopOverlay({ teamId, onClose }: ShopOverlayProps) {
                     ? { background: '#ffffff', borderColor: '#d1d5db', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }
                     : { background: '#f8fafc', borderColor: '#e5e7eb', opacity: 0.4, cursor: 'not-allowed' }
                 }
-                onClick={() => canBuy && buyItem(type as ItemType, teamId)}
+                onClick={() => { if (canBuy) { soundManager.playSFX('shop_buy'); buyItem(type as ItemType, teamId) } }}
               >
                 <div className="flex items-start gap-3">
                   <span className="text-3xl flex-shrink-0">{def.icon}</span>

@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { GlassPanel } from '../ui/GlassPanel'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
+import { soundManager } from '../../lib/soundManager'
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 
@@ -44,7 +47,12 @@ export function RollingScreen() {
     setRolling(true)
     setRevealed(false)
     rollDice()
-    setTimeout(() => { setRolling(false); setRevealed(true) }, 2000)
+    soundManager.playSFX('dice_roll')
+    setTimeout(() => {
+      setRolling(false)
+      setRevealed(true)
+      soundManager.playSFX('dice_result')
+    }, 2000)
   }
 
   return (
@@ -65,20 +73,16 @@ export function RollingScreen() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: i * 0.1 }}
           >
-            <GlassPanel className="p-6 flex flex-col items-center gap-4 w-44" accent={team.avatar.color}>
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border-2"
-                style={{
-                  background: team.avatar.bgColor,
-                  borderColor: team.avatar.color,
-                  boxShadow: `0 4px 12px ${team.avatar.color}44`,
-                }}
-              >
-                {team.avatar.emoji}
-              </div>
+            <GlassPanel className="p-6 flex flex-col items-center gap-4 w-44" accent={resolveTeamColor(team.jerseyColor, team.avatar.color)}>
+              <AvatarRingWrapper
+                avatar={team.avatar}
+                jerseyColor={team.jerseyColor}
+                outerSize={64}
+                style={{ boxShadow: `0 4px 12px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}44` }}
+              />
               <div className="font-display text-text-primary text-lg">{team.name}</div>
 
-              <DiceDisplay value={diceResults[team.id] ?? 1} rolling={rolling} color={team.avatar.color} />
+              <DiceDisplay value={diceResults[team.id] ?? 1} rolling={rolling} color={resolveTeamColor(team.jerseyColor, team.avatar.color)} />
 
               <AnimatePresence>
                 {revealed && diceResults[team.id] !== undefined && (
@@ -86,7 +90,7 @@ export function RollingScreen() {
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className="font-display text-2xl text-center"
-                    style={{ color: team.avatar.color }}
+                    style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}
                   >
                     {team.anchoredThisRound ? (
                       <span className="text-text-secondary text-base">⚓ 0 Schritte</span>

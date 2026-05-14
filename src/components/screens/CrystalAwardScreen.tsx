@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
+import { soundManager } from '../../lib/soundManager'
 
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
 const MEDAL_COLORS = ['#d97706', '#64748b', '#ea580c', '#94a3b8']
@@ -22,7 +25,7 @@ function CrystalParticle({ color }: { color: string }) {
 }
 
 export function CrystalAwardScreen() {
-  const { teams, crystalAwards, finishCrystalAward } = useGameStore()
+  const { teams, crystalAwards, finishCrystalAward, finaleActive, darkRoundActive } = useGameStore()
 
   // Sort by placement for display (1st place first)
   const sorted = [...teams]
@@ -43,9 +46,12 @@ export function CrystalAwardScreen() {
 
       // Spawn particles
       const pts = sorted.flatMap((t) =>
-        Array.from({ length: 8 }, (_, i) => ({ id: Date.now() + i + Math.random() * 1000, color: t.avatar.color }))
+        Array.from({ length: 8 }, (_, i) => ({ id: Date.now() + i + Math.random() * 1000, color: resolveTeamColor(t.jerseyColor, t.avatar.color) }))
       )
       setParticles(pts)
+
+      // Play the sweep sound ONCE at the start of the counting animation
+      soundManager.playSFX('crystal_count')
 
       const frame = (now: number) => {
         const elapsed = Math.min(now - startTime, duration)
@@ -60,6 +66,7 @@ export function CrystalAwardScreen() {
         } else {
           setDone(true)
           setParticles([])
+          soundManager.playSFX('crystal_gain')
         }
       }
       rafRef.current = requestAnimationFrame(frame)
@@ -78,6 +85,19 @@ export function CrystalAwardScreen() {
         <h1 className="font-display text-5xl text-[#0f172a]">
           💎 <span className="text-[#f59e0b]">KRISTALLVERGABE</span>
         </h1>
+        {finaleActive && (
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', delay: 0.2 }}
+            className="inline-block mt-2 px-5 py-1.5 rounded-full font-display text-lg border-2"
+            style={darkRoundActive
+              ? { background: '#7f1d1d', color: '#fca5a5', borderColor: '#ef4444' }
+              : { background: '#fef3c7', color: '#d97706', borderColor: '#f59e0b' }}
+          >
+            {darkRoundActive ? '🔥 VIERFACHE KRISTALLE!' : '🏆 FINALE – DOPPELTE KRISTALLE!'}
+          </motion.div>
+        )}
         <p className="text-[#475569] font-body text-xl mt-2">Alle Teams erhalten ihre Runden-Kristalle</p>
       </motion.div>
 
@@ -87,7 +107,7 @@ export function CrystalAwardScreen() {
           const award = crystalAwards[team.id] ?? 0
           const animated = animatedAwards[team.id] ?? 0
           const total = team.crystals + animated
-          const teamParticles = particles.filter((p) => p.color === team.avatar.color)
+          const teamParticles = particles.filter((p) => p.color === resolveTeamColor(team.jerseyColor, team.avatar.color))
 
           return (
             <motion.div
@@ -96,7 +116,7 @@ export function CrystalAwardScreen() {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               transition={{ delay: rank * 0.1, type: 'spring', damping: 18 }}
               className="card p-6 flex flex-col items-center w-52 relative overflow-hidden"
-              style={{ borderColor: team.avatar.color, borderWidth: 2 }}
+              style={{ borderColor: resolveTeamColor(team.jerseyColor, team.avatar.color), borderWidth: 2 }}
             >
               {/* Particles */}
               <div className="absolute inset-0 pointer-events-none">
@@ -113,10 +133,9 @@ export function CrystalAwardScreen() {
               <motion.div
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 1.8, repeat: Infinity, delay: rank * 0.3 }}
-                className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border-2 mb-3"
-                style={{ background: team.avatar.bgColor, borderColor: team.avatar.color, boxShadow: `0 4px 14px ${team.avatar.color}44` }}
+                className="mb-3"
               >
-                {team.avatar.emoji}
+                <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={64} style={{ boxShadow: `0 4px 14px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}44` }} />
               </motion.div>
 
               <div className="font-display text-xl text-[#0f172a] mb-3">{team.name}</div>
@@ -134,7 +153,7 @@ export function CrystalAwardScreen() {
 
               {/* Running total */}
               <div className="font-display text-base text-[#475569]">
-                Gesamt: <span style={{ color: team.avatar.color }}>{total}</span> 💎
+                Gesamt: <span style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}>{total}</span> 💎
               </div>
             </motion.div>
           )

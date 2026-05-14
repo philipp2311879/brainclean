@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { useMinigameStore } from '../../store/minigameStore'
 import { Button } from '../ui/Button'
+import { soundManager } from '../../lib/soundManager'
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   inhibition:  { bg: '#fee2e2', text: '#b91c1c', border: '#ef4444' },
@@ -81,9 +82,16 @@ export function MinigameScreen() {
   const { phase, startMinigame, endMinigame, currentRound, totalRounds, darkRoundActive } = useGameStore()
   const { currentMinigame, pickNext } = useMinigameStore()
 
-  // Pick a new minigame when announce phase mounts
+  // Pick a new minigame when announce phase mounts + play round sound
   useEffect(() => {
-    if (phase === 'minigameAnnounce') pickNext()
+    if (phase === 'minigameAnnounce') {
+      pickNext()
+      if (currentRound === totalRounds) {
+        soundManager.playSFX('finale_announce')
+      } else {
+        soundManager.playSFX('round_start')
+      }
+    }
   }, [])
 
   const mg = currentMinigame

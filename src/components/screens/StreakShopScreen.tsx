@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { ShopOverlay } from '../overlays/ShopOverlay'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { soundManager } from '../../lib/soundManager'
 
 export function StreakShopScreen() {
   const { streakShopTeamId, teams, closeStreakShop } = useGameStore()
@@ -13,6 +15,7 @@ export function StreakShopScreen() {
   const flames = '🔥'.repeat(Math.min(streakLevel, 5))
 
   useEffect(() => {
+    soundManager.playSFX('streak')
     const t = setTimeout(() => setShopVisible(true), 1600)
     return () => clearTimeout(t)
   }, [])
@@ -75,12 +78,12 @@ export function StreakShopScreen() {
           transition={{ delay: 0.5 }}
           className="flex items-center justify-center gap-3 mb-4"
         >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-4xl border-3 border-[#f97316] shadow-lg"
-            style={{ background: team.avatar.bgColor, borderWidth: 3, borderColor: team.avatar.color }}
-          >
-            {team.avatar.emoji}
-          </div>
+          <AvatarRingWrapper
+            avatar={team.avatar}
+            jerseyColor={team.jerseyColor}
+            outerSize={64}
+            style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+          />
           <div className="text-left">
             <div className="font-display text-3xl text-[#0f172a]">{team.name}</div>
             <div className="font-body text-[#f97316] font-bold">

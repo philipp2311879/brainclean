@@ -2,6 +2,8 @@ import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { GlassPanel } from '../ui/GlassPanel'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
 
 export function RoundEndScreen() {
   const { teams, currentRound, totalRounds, nextRound } = useGameStore()
@@ -36,21 +38,17 @@ export function RoundEndScreen() {
           >
             <GlassPanel
               className={`p-4 flex items-center gap-4 ${rank === 0 ? 'border-2' : ''}`}
-              accent={rank === 0 ? team.avatar.color : undefined}
+              accent={rank === 0 ? resolveTeamColor(team.jerseyColor, team.avatar.color) : undefined}
             >
               <div className="w-10 text-center font-display text-2xl text-text-secondary">
                 {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}.`}
               </div>
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-3xl border-2 flex-shrink-0"
-                style={{
-                  background: team.avatar.bgColor,
-                  borderColor: team.avatar.color,
-                  boxShadow: rank === 0 ? `0 4px 16px ${team.avatar.color}66` : 'none',
-                }}
-              >
-                {team.avatar.emoji}
-              </div>
+              <AvatarRingWrapper
+                avatar={team.avatar}
+                jerseyColor={team.jerseyColor}
+                outerSize={56}
+                style={{ flexShrink: 0, boxShadow: rank === 0 ? `0 4px 16px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}66` : 'none' }}
+              />
               <div className="flex-1">
                 <div className="font-display text-text-primary text-xl">{team.name}</div>
                 <div className="text-text-secondary text-sm font-body">
@@ -60,7 +58,7 @@ export function RoundEndScreen() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="font-display text-3xl" style={{ color: team.avatar.color }}>{team.crystals}</span>
+                <span className="font-display text-3xl" style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}>{team.crystals}</span>
                 <span className="text-xl">💎</span>
               </div>
             </GlassPanel>

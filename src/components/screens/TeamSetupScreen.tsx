@@ -3,20 +3,32 @@ import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { GlassPanel } from '../ui/GlassPanel'
-import { AVATARS } from '../../data/avatars'
+import { AvatarDisplay, AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { AVATARS, JERSEY_COLORS, resolveTeamColor } from '../../data/avatars'
 
 export function TeamSetupScreen() {
-  const { teams, currentTeamSetupIndex, numTeams, updateTeamName, updateTeamAvatar, confirmTeam } = useGameStore()
+  const {
+    teams, currentTeamSetupIndex, numTeams,
+    updateTeamName, updateTeamAvatar, setJerseyColor, confirmTeam,
+  } = useGameStore()
   const [inputValue, setInputValue] = useState('')
 
   const currentTeam = teams[currentTeamSetupIndex]
   if (!currentTeam) return null
 
-  // Only block avatars already chosen by PREVIOUS teams (index < current)
-  const takenByTeam: Record<string, string> = {}
-  teams
-    .filter((_, i) => i < currentTeamSetupIndex)
-    .forEach((t) => { takenByTeam[t.avatar.id] = t.name })
+  // ── Avatar blocking: only teams BEFORE current index that have confirmed ──
+  const takenAvatarIds = new Set(
+    teams
+      .filter((_, i) => i < currentTeamSetupIndex)
+      .map((t) => t.avatar.id),
+  )
+
+  // ── Jersey color blocking: same rule ──────────────────────────────────────
+  const takenJerseyColors = new Set(
+    teams
+      .filter((t, i) => i < currentTeamSetupIndex && t.jerseyColor !== null)
+      .map((t) => t.jerseyColor!),
+  )
 
   const handleConfirm = () => {
     if (inputValue.trim()) updateTeamName(inputValue.trim())
@@ -24,62 +36,63 @@ export function TeamSetupScreen() {
     confirmTeam()
   }
 
+  const canConfirm = currentTeam.jerseyColor !== null
+
+  const jc = currentTeam.jerseyColor
+  const ringColor = resolveTeamColor(jc, '#e2e8f0')
+
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center screen-base p-6">
+    <div className="w-full h-full flex flex-col items-center justify-center screen-base p-6 overflow-y-auto">
       {/* Progress dots */}
       <motion.div
         key={currentTeamSetupIndex}
         initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="text-center mb-8"
+        className="text-center mb-5"
       >
-        <div className="flex gap-2.5 justify-center mb-4">
+        <div className="flex gap-2.5 justify-center mb-3">
           {Array.from({ length: numTeams }, (_, i) => (
             <div
               key={i}
               className="w-4 h-4 rounded-full transition-all duration-300 border-2"
               style={{
                 background: i < currentTeamSetupIndex
-                  ? (teams[i]?.avatar.color ?? '#4f8cff')
-                  : i === currentTeamSetupIndex
-                  ? currentTeam.avatar.color
-                  : 'transparent',
+                  ? resolveTeamColor(teams[i]?.jerseyColor ?? null, teams[i]?.avatar.color ?? '#4f8cff')
+                  : i === currentTeamSetupIndex ? ringColor : 'transparent',
                 borderColor: i <= currentTeamSetupIndex
-                  ? (teams[i]?.avatar.color ?? '#4f8cff')
+                  ? resolveTeamColor(teams[i]?.jerseyColor ?? null, teams[i]?.avatar.color ?? '#4f8cff')
                   : '#d1d5db',
               }}
             />
           ))}
         </div>
         <h1 className="font-display text-4xl" style={{ color: '#0f172a' }}>
-          TEAM{' '}
-          <span style={{ color: currentTeam.avatar.color }}>{currentTeamSetupIndex + 1}</span>{' '}
-          EINRICHTEN
+          TEAM <span style={{ color: ringColor }}>{currentTeamSetupIndex + 1}</span> EINRICHTEN
         </h1>
-        <p className="font-body text-xl mt-1" style={{ color: '#475569' }}>
+        <p className="font-body text-lg mt-0.5" style={{ color: '#475569' }}>
           {currentTeamSetupIndex + 1} von {numTeams}
         </p>
       </motion.div>
 
-      <div className="flex gap-6 w-full max-w-4xl items-start">
-        {/* Preview + Name */}
-        <motion.div initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-64 flex flex-col gap-4">
-          <GlassPanel className="p-6 flex flex-col items-center gap-4" accent={currentTeam.avatar.color}>
+      <div className="flex gap-5 w-full max-w-5xl items-start">
+        {/* Left: Preview + Name */}
+        <motion.div initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-52 flex flex-col gap-3 flex-shrink-0">
+          <GlassPanel className="p-5 flex flex-col items-center gap-3" accent={ringColor}>
             <motion.div
-              key={currentTeam.avatar.id}
+              key={`${currentTeam.avatar.id}-${jc ?? 'none'}`}
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="w-28 h-28 rounded-full flex items-center justify-center text-6xl border-4"
-              style={{
-                background: currentTeam.avatar.bgColor,
-                borderColor: currentTeam.avatar.color,
-                boxShadow: `0 8px 24px ${currentTeam.avatar.color}44`,
-              }}
             >
-              {currentTeam.avatar.emoji}
+              <AvatarRingWrapper
+                avatar={currentTeam.avatar}
+                jerseyColor={jc}
+                outerSize={110}
+                mode="full"
+                style={{ boxShadow: `0 8px 24px ${ringColor}44` }}
+              />
             </motion.div>
-            <div className="font-display text-2xl text-center" style={{ color: currentTeam.avatar.color }}>
+            <div className="font-display text-xl text-center" style={{ color: ringColor }}>
               {currentTeam.name}
             </div>
           </GlassPanel>
@@ -97,71 +110,124 @@ export function TeamSetupScreen() {
                 setInputValue(e.target.value)
                 updateTeamName(e.target.value || currentTeam.name)
               }}
-              style={{ width: '100%', fontSize: '1.2rem' }}
+              style={{ width: '100%', fontSize: '1.1rem' }}
             />
           </GlassPanel>
         </motion.div>
 
-        {/* Avatar grid */}
-        <motion.div initial={{ x: 24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex-1">
-          <GlassPanel className="p-5">
-            <h2 className="font-display text-xl mb-4 text-center" style={{ color: '#475569' }}>
+        {/* Right: Avatar + Color selection */}
+        <motion.div initial={{ x: 24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex-1 min-w-0 flex flex-col gap-3">
+
+          {/* Avatar grid */}
+          <GlassPanel className="p-4">
+            <h2 className="font-display text-lg mb-3 text-center" style={{ color: '#475569' }}>
               AVATAR WÄHLEN
             </h2>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)', maxHeight: '38vh', overflowY: 'auto' }}>
               {AVATARS.map((avatar) => {
-                const takenBy = takenByTeam[avatar.id]
-                const isTaken = Boolean(takenBy)
+                const isTaken = takenAvatarIds.has(avatar.id)
+                const takenByName = isTaken
+                  ? teams.find((t, i) => i < currentTeamSetupIndex && t.avatar.id === avatar.id)?.name
+                  : undefined
                 const isSelected = currentTeam.avatar.id === avatar.id
+                const isImg = avatar.type === 'image'
 
                 return (
                   <motion.button
                     key={avatar.id}
-                    whileTap={isTaken ? {} : { scale: 0.9 }}
-                    whileHover={isTaken ? {} : { scale: 1.06, y: -2 }}
+                    whileTap={isTaken ? {} : { scale: 0.93 }}
+                    whileHover={isTaken ? {} : { scale: 1.05, y: -2 }}
                     onClick={() => !isTaken && updateTeamAvatar(avatar.id)}
                     disabled={isTaken}
-                    title={isTaken ? `Gewählt von ${takenBy}` : avatar.name}
-                    className="relative aspect-square rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer border-2"
-                    style={
-                      isSelected
-                        ? { background: avatar.bgColor, borderColor: avatar.color, boxShadow: `0 6px 20px ${avatar.color}44` }
+                    title={isTaken ? `Gewählt von ${takenByName}` : avatar.name}
+                    className="relative flex flex-col items-center justify-end gap-1 rounded-2xl border-2 cursor-pointer transition-all duration-200 pb-2 pt-1 overflow-hidden"
+                    style={{
+                      height: isImg ? 120 : 82,
+                      ...(isSelected
+                        ? { background: '#f8fafc', borderColor: ringColor, boxShadow: `0 4px 16px ${ringColor}44` }
                         : isTaken
-                        ? { background: '#f1f5f9', borderColor: '#e2e8f0', opacity: 0.45, cursor: 'not-allowed' }
-                        : { background: '#f8fafc', borderColor: '#e5e7eb' }
-                    }
+                        ? { background: '#f1f5f9', borderColor: '#e2e8f0', opacity: 0.4, cursor: 'not-allowed' }
+                        : { background: '#f8fafc', borderColor: '#e5e7eb' }),
+                    }}
                   >
-                    <span className="text-4xl leading-none">{avatar.emoji}</span>
-                    <span className="text-xs font-body font-semibold leading-none" style={{ color: isTaken ? '#94a3b8' : '#475569' }}>
-                      {isTaken ? takenBy : avatar.name}
+                    <div className="flex-1 w-full flex items-center justify-center overflow-hidden px-1">
+                      {isImg
+                        ? <img src={avatar.src} alt={avatar.name} draggable={false}
+                            style={{ maxHeight: 80, maxWidth: '100%', objectFit: 'contain', objectPosition: 'center bottom' }} />
+                        : <span style={{ fontSize: 34, lineHeight: 1 }}>{avatar.emoji}</span>
+                      }
+                    </div>
+                    <span className="text-[10px] font-body font-semibold leading-none z-10" style={{ color: isTaken ? '#94a3b8' : '#475569' }}>
+                      {isTaken ? takenByName : avatar.name}
                     </span>
-
-                    {/* Check mark for selected */}
                     {isSelected && (
-                      <div
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ background: avatar.color }}
-                      >
-                        ✓
-                      </div>
+                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold z-20"
+                        style={{ background: ringColor }}>✓</div>
                     )}
-
-                    {/* Lock for taken */}
                     {isTaken && (
-                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs border border-[#e2e8f0]">
-                        🔒
-                      </div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs border border-[#e2e8f0] z-20">🔒</div>
                     )}
                   </motion.button>
                 )
               })}
             </div>
           </GlassPanel>
+
+          {/* Jersey color selection */}
+          <GlassPanel className="p-4">
+            <h2 className="font-display text-lg mb-3 text-center" style={{ color: '#475569' }}>
+              LEIBCHEN-FARBE WÄHLEN
+            </h2>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {JERSEY_COLORS.map((jcDef) => {
+                const isTakenColor = takenJerseyColors.has(jcDef.hex)
+                const isSelectedColor = currentTeam.jerseyColor === jcDef.hex
+                const isRainbow = jcDef.hex === 'rainbow'
+
+                return (
+                  <motion.button
+                    key={jcDef.id}
+                    whileTap={isTakenColor ? {} : { scale: 0.9 }}
+                    whileHover={isTakenColor ? {} : { scale: 1.1 }}
+                    onClick={() => !isTakenColor && setJerseyColor(jcDef.hex)}
+                    disabled={isTakenColor}
+                    title={isTakenColor ? 'Bereits gewählt' : jcDef.name}
+                    className="relative flex flex-col items-center gap-1 cursor-pointer"
+                    style={{ opacity: isTakenColor ? 0.35 : 1, cursor: isTakenColor ? 'not-allowed' : 'pointer' }}
+                  >
+                    {/* Color swatch */}
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center"
+                      style={{
+                        background: isRainbow
+                          ? 'conic-gradient(#EF4444, #F97316, #EAB308, #22C55E, #3B82F6, #A855F7, #EF4444)'
+                          : jcDef.hex,
+                        border: isSelectedColor ? '3px solid #0f172a' : '3px solid transparent',
+                        boxShadow: isSelectedColor ? '0 0 0 2px white, 0 0 0 4px #0f172a' : 'none',
+                      }}
+                    >
+                      {isSelectedColor && (
+                        <span className="text-white font-bold text-lg" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>✓</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-body font-semibold" style={{ color: isTakenColor ? '#94a3b8' : '#475569' }}>
+                      {isTakenColor ? '🔒' : jcDef.name}
+                    </span>
+                  </motion.button>
+                )
+              })}
+            </div>
+            {!canConfirm && (
+              <p className="text-center text-sm font-body mt-2" style={{ color: '#f97316' }}>
+                ↑ Bitte eine Farbe wählen um fortzufahren
+              </p>
+            )}
+          </GlassPanel>
         </motion.div>
       </div>
 
-      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mt-8">
-        <Button size="xl" onClick={handleConfirm}>
+      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mt-5">
+        <Button size="xl" onClick={handleConfirm} disabled={!canConfirm}>
           {currentTeamSetupIndex + 1 < numTeams
             ? `WEITER → TEAM ${currentTeamSetupIndex + 2}`
             : '🎮 SPIEL STARTEN!'}

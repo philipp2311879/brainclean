@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { CountingNumber } from '../ui/CountingNumber'
+import { AvatarRingWrapper } from '../ui/AvatarDisplay'
+import { resolveTeamColor } from '../../data/avatars'
+import { soundManager } from '../../lib/soundManager'
 
 function Confetti() {
   const pieces = Array.from({ length: 60 }, (_, i) => ({
@@ -42,7 +45,9 @@ export function GameOverScreen() {
   useEffect(() => {
     const delays = [600, 1300, 2000, 2700]
     const timers = delays.map((d, i) => setTimeout(() => setStep(i + 1), d))
-    return () => timers.forEach(clearTimeout)
+    // Play winner fanfare when last podium position is revealed
+    const winnerTimer = setTimeout(() => soundManager.playSFX('winner'), 2700)
+    return () => { timers.forEach(clearTimeout); clearTimeout(winnerTimer) }
   }, [])
 
   const winner = sorted[0]
@@ -71,7 +76,7 @@ export function GameOverScreen() {
             className="text-text-secondary font-body text-2xl mt-2"
           >
             Glückwunsch,{' '}
-            <span className="font-display" style={{ color: winner.avatar.color }}>
+            <span className="font-display" style={{ color: resolveTeamColor(winner.jerseyColor, winner.avatar.color) }}>
               {winner.name}
             </span>
             !
@@ -92,14 +97,8 @@ export function GameOverScreen() {
               <motion.div
                 animate={{ y: [0, -5, 0] }}
                 transition={{ duration: 2.2, repeat: Infinity, delay: 0.4 }}
-                className="w-20 h-20 rounded-full flex items-center justify-center text-4xl border-4"
-                style={{
-                  background: sorted[1].avatar.bgColor,
-                  borderColor: sorted[1].avatar.color,
-                  boxShadow: `0 6px 20px ${sorted[1].avatar.color}66`,
-                }}
               >
-                {sorted[1].avatar.emoji}
+                <AvatarRingWrapper avatar={sorted[1].avatar} jerseyColor={sorted[1].jerseyColor} outerSize={80} style={{ boxShadow: `0 6px 20px ${resolveTeamColor(sorted[1].jerseyColor, sorted[1].avatar.color)}66` }} />
               </motion.div>
               <div className="font-display text-text-primary text-base">{sorted[1].name}</div>
               <div className="font-display text-accent-gold text-lg">{sorted[1].crystals} 💎</div>
@@ -125,14 +124,8 @@ export function GameOverScreen() {
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 1.8, repeat: Infinity }}
-                className="w-32 h-32 rounded-full flex items-center justify-center text-6xl border-4"
-                style={{
-                  background: sorted[0].avatar.bgColor,
-                  borderColor: sorted[0].avatar.color,
-                  boxShadow: `0 10px 40px ${sorted[0].avatar.color}88`,
-                }}
               >
-                {sorted[0].avatar.emoji}
+                <AvatarRingWrapper avatar={sorted[0].avatar} jerseyColor={sorted[0].jerseyColor} outerSize={128} style={{ boxShadow: `0 10px 40px ${resolveTeamColor(sorted[0].jerseyColor, sorted[0].avatar.color)}88` }} />
               </motion.div>
               <div className="font-display text-text-primary text-xl">{sorted[0].name}</div>
               <div className="font-display text-2xl text-accent-gold">
@@ -159,15 +152,8 @@ export function GameOverScreen() {
               <motion.div
                 animate={{ y: [0, -4, 0] }}
                 transition={{ duration: 2.5, repeat: Infinity, delay: 0.7 }}
-                className="w-16 h-16 rounded-full flex items-center justify-center text-3xl border-2"
-                style={{
-                  background: sorted[2].avatar.bgColor,
-                  borderColor: sorted[2].avatar.color,
-                  boxShadow: `0 4px 14px ${sorted[2].avatar.color}44`,
-                  border: `3px solid ${sorted[2].avatar.color}`,
-                }}
               >
-                {sorted[2].avatar.emoji}
+                <AvatarRingWrapper avatar={sorted[2].avatar} jerseyColor={sorted[2].jerseyColor} outerSize={64} style={{ boxShadow: `0 4px 14px ${resolveTeamColor(sorted[2].jerseyColor, sorted[2].avatar.color)}44` }} />
               </motion.div>
               <div className="font-display text-text-primary text-sm">{sorted[2].name}</div>
               <div className="font-display text-accent-gold text-base">{sorted[2].crystals} 💎</div>
@@ -189,12 +175,7 @@ export function GameOverScreen() {
               animate={{ y: 0, opacity: 1 }}
               className="flex flex-col items-center gap-2"
             >
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2"
-                style={{ background: sorted[3].avatar.bgColor, borderColor: sorted[3].avatar.color }}
-              >
-                {sorted[3].avatar.emoji}
-              </div>
+              <AvatarRingWrapper avatar={sorted[3].avatar} jerseyColor={sorted[3].jerseyColor} outerSize={56} />
               <div className="font-display text-text-secondary text-sm">{sorted[3].name}</div>
               <div className="font-display text-text-secondary text-sm">{sorted[3].crystals} 💎</div>
               <div
