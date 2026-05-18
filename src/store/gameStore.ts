@@ -102,10 +102,6 @@ function checkCrystalAchievements(
   if (round <= 1) return
   for (const t of teams) {
     tryUnlock('pleitegeier', t.id, t.crystals === 0, unlocked, queue, teams, round)
-    if (t.crystals >= 500 && !progress.crystal500Done) {
-      tryUnlock('kristallkoenig', t.id, true, unlocked, queue, teams, round)
-      progress.crystal500Done = true
-    }
   }
 }
 
@@ -304,13 +300,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const sortedByCrystals = [...teams].sort((a, b) => a.crystals - b.crystals)
     for (const t of teams) {
       if (!newProg.firstPlaceCount[t.id]) newProg.firstPlaceCount[t.id] = 0
-      if (!newProg.wasLastPlace[t.id]) newProg.wasLastPlace[t.id] = false
-    }
-    if (sortedByCrystals.length > 0) {
-      const worstCrystals = sortedByCrystals[0].crystals
-      for (const t of teams) {
-        if (t.crystals === worstCrystals) newProg.wasLastPlace[t.id] = true
-      }
     }
 
     let streakShopTeamId: string | null = null
@@ -370,10 +359,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newUnlocked = { ...unlockedAchievements }
     const newQueue = [...achievementQueue]
     const sortedNew = [...updated].sort((a, b) => b.crystals - a.crystals)
-    if (sortedNew.length > 0) {
-      const firstTeam = sortedNew[0]
-      tryUnlock('comeback_kid', firstTeam.id, !!prog.wasLastPlace[firstTeam.id], newUnlocked, newQueue, updated, currentRound)
-    }
     checkCrystalAchievements(updated, newProg, newUnlocked, newQueue, currentRound)
 
     const hasItems = updated.some((t) => t.items.length > 0)
@@ -413,8 +398,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
               if (t.id === teamId)       return { ...t, crystals: t.crystals + stolen }
               return t
             })
-            newProg.crystalsStolen[teamId] = (newProg.crystalsStolen[teamId] ?? 0) + stolen
-            tryUnlock('bankraeuber', teamId, (newProg.crystalsStolen[teamId] ?? 0) >= 200, newUnlocked, newQueue, teams, currentRound)
           }
         }
         break
@@ -467,10 +450,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
         break
     }
-
-    // Sammler achievement
-    const updatedTeam = teams.find((t) => t.id === teamId)
-    tryUnlock('sammler', teamId, (updatedTeam?.items.length ?? 0) >= 3, newUnlocked, newQueue, teams, currentRound)
 
     set({ teams, activeMines, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
   },
@@ -531,12 +510,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const lapBonus = passedStart ? 100 : 0
     if (lapBonus) {
       teams = teams.map((t) => (t.id === teamId ? { ...t, crystals: t.crystals + lapBonus, lapsCompleted: t.lapsCompleted + 1 } : t))
-      // Erster! achievement
-      if (!newProg.firstLapDone) {
-        newProg.firstLapDone = true
-        newProg.firstLapTeamId = teamId
-        tryUnlock('erster', teamId, true, newUnlocked, newQueue, teams, currentRound)
-      }
     }
 
     // 3. Mine check
@@ -581,8 +554,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (defender.hasShield) {
         teams = teams.map((t) => (t.id === defender.id ? { ...t, hasShield: false } : t))
         pendingCollision = { attackerTeamId: teamId, defenderTeamId: defender.id, crystalsStolen: 0, blocked: true }
-        newProg.shieldBlocks[defender.id] = (newProg.shieldBlocks[defender.id] ?? 0) + 1
-        tryUnlock('schildkroete', defender.id, (newProg.shieldBlocks[defender.id] ?? 0) >= 2, newUnlocked, newQueue, teams, currentRound)
       } else {
         const stolen = Math.min(Math.floor(Math.random() * 26) + 25, defender.crystals)
         teams = teams.map((t) => {
@@ -591,11 +562,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           return t
         })
         pendingCollision = { attackerTeamId: teamId, defenderTeamId: defender.id, crystalsStolen: stolen, blocked: false }
-        newProg.crystalsStolen[teamId] = (newProg.crystalsStolen[teamId] ?? 0) + stolen
-        if (!newProg.collisionsVs[teamId]) newProg.collisionsVs[teamId] = {}
-        newProg.collisionsVs[teamId][defender.id] = (newProg.collisionsVs[teamId][defender.id] ?? 0) + 1
-        tryUnlock('bankraeuber', teamId, (newProg.crystalsStolen[teamId] ?? 0) >= 200, newUnlocked, newQueue, teams, currentRound)
-        tryUnlock('rivalen', teamId, (newProg.collisionsVs[teamId][defender.id] ?? 0) >= 3, newUnlocked, newQueue, teams, currentRound)
       }
     }
 
@@ -677,8 +643,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const updated = teams.map((t) =>
         t.id === teamId && t.items.length < 3 ? { ...t, items: [...t.items, item] } : t,
       )
-      const updatedTeam = updated.find((t) => t.id === teamId)
-      tryUnlock('sammler', teamId, (updatedTeam?.items.length ?? 0) >= 3, newUnlocked, newQueue, updated, currentRound)
       set({
         teams: updated,
         fieldEffectPending: { teamId, fieldType: 'item', crystalDelta: 0, itemFound: item },
@@ -792,10 +756,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newProg = { ...prog }
     const newUnlocked = { ...unlockedAchievements }
     const newQueue = [...achievementQueue]
-    newProg.shopPurchases[tid] = (newProg.shopPurchases[tid] ?? 0) + 1
-    const updatedTeam = updated.find((t) => t.id === tid)
-    tryUnlock('shoppingtour', tid, (newProg.shopPurchases[tid] ?? 0) >= 3, newUnlocked, newQueue, updated, currentRound)
-    tryUnlock('sammler', tid, (updatedTeam?.items.length ?? 0) >= 3, newUnlocked, newQueue, updated, currentRound)
     set({ teams: updated, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
   },
 
