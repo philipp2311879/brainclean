@@ -64,32 +64,12 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   turbo: {
     type: 'turbo',
     name: 'Turbo',
-    description: 'Dein Würfel zeigt garantiert 6',
+    description: 'Beide Würfel zeigen garantiert 6 → 12 Schritte',
     icon: '🚀',
-    price: 250,
-    needsTarget: false,
-    needsField: false,
-    needsAmount: false,
-  },
-  team_steal: {
-    type: 'team_steal',
-    name: 'Teamklau',
-    description: 'Tausche Platzierungen mit Zielteam beim nächsten Minispiel',
-    icon: '🦹',
     price: 150,
-    needsTarget: true,
-    needsField: false,
-    needsAmount: false,
-  },
-  double_or_nothing: {
-    type: 'double_or_nothing',
-    name: 'Doppel-oder-Nichts',
-    description: '1. Platz = Einsatz ×3 zurück. Sonst: Einsatz weg',
-    icon: '🎰',
-    price: 0,
     needsTarget: false,
     needsField: false,
-    needsAmount: true,
+    needsAmount: false,
   },
 }
 
@@ -101,7 +81,6 @@ export const SHOP_ITEMS: ItemType[] = [
   'position_swap',
   'minefield',
   'turbo',
-  'team_steal',
 ]
 
 let itemCounter = 0

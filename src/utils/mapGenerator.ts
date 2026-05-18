@@ -148,7 +148,7 @@ function fallback(config: MapConfig): FieldType[] {
 }
 
 function getFieldValue(type: FieldType): number | undefined {
-  if (type === 'bonus') return Math.floor(Math.random() * 51) + 30
-  if (type === 'trap')  return Math.floor(Math.random() * 51) + 30
+  if (type === 'bonus') return Math.floor(Math.random() * 31) + 10  // 10–40
+  if (type === 'trap')  return Math.floor(Math.random() * 21) + 10  // 10–30
   return undefined
 }

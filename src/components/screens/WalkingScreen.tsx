@@ -338,14 +338,19 @@ export function WalkingScreen() {
                 {fieldEffectPending.fieldType === 'bonus' && '💎'}
                 {fieldEffectPending.fieldType === 'trap' && '💀'}
                 {fieldEffectPending.fieldType === 'item' && '🎁'}
-                {(fieldEffectPending.fieldType === 'normal' || fieldEffectPending.fieldType === 'shop' || fieldEffectPending.fieldType === 'start') && '📍'}
+                {fieldEffectPending.shopDenied && '🚫'}
+                {(fieldEffectPending.fieldType === 'normal' || fieldEffectPending.fieldType === 'start') && '📍'}
               </div>
               <div className="font-display text-2xl text-[#0f172a] mb-2">
                 {fieldEffectPending.fieldType === 'bonus' && 'BONUS-FELD!'}
                 {fieldEffectPending.fieldType === 'trap' && 'FALLEN-FELD!'}
                 {fieldEffectPending.fieldType === 'item' && 'ITEM-FELD!'}
+                {fieldEffectPending.shopDenied && 'NICHT GENUG KRISTALLE!'}
                 {fieldEffectPending.fieldType === 'normal' && 'Normales Feld'}
               </div>
+              {fieldEffectPending.shopDenied && (
+                <p className="text-[#475569] font-body mb-3">Mindestens 50 💎 nötig für den Shop.</p>
+              )}
               {fieldEffectPending.crystalDelta > 0 && (
                 <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
                   className="font-display text-6xl mb-2" style={{ color: '#10b981' }}>

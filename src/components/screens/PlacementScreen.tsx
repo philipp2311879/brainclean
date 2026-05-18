@@ -9,9 +9,9 @@ const P_COLORS = ['#d97706', '#64748b', '#ea580c', '#94a3b8']
 const P_MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
 
 export function PlacementScreen() {
-  const { teams, setPlacement, confirmPlacements } = useGameStore()
-  // Every team needs a placement (any value 1-4, duplicates allowed)
+  const { teams, numTeams, setPlacement, confirmPlacements } = useGameStore()
   const allPlaced = teams.every((t) => t.placement !== null)
+  const places = Array.from({ length: numTeams }, (_, i) => i + 1)
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-8 pt-20" style={{ background: 'linear-gradient(160deg,#eef2ff 0%,#f5f3ff 50%,#fff7ed 100%)' }}>
@@ -57,9 +57,9 @@ export function PlacementScreen() {
                 </div>
               </div>
 
-              {/* Placement buttons — all 4 places, duplicates allowed */}
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((p) => {
+              {/* Placement buttons — only places valid for current team count */}
+              <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${places.length}, 1fr)` }}>
+                {places.map((p) => {
                   const isSelected = team.placement === p
                   return (
                     <motion.button

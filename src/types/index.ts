@@ -27,8 +27,6 @@ export type ItemType =
   | 'position_swap'
   | 'minefield'
   | 'turbo'
-  | 'team_steal'
-  | 'double_or_nothing'
 
 export interface Avatar {
   id: string
@@ -131,7 +129,8 @@ export interface FieldEffectPending {
   crystalDelta: number
   itemFound?: Item
   lapBonus?: number
-  isMine?: boolean  // dedicated BOOM popup instead of generic trap popup
+  isMine?: boolean
+  shopDenied?: boolean
 }
 
 export interface GameState {
@@ -146,29 +145,28 @@ export interface GameState {
   darkRoundActive: boolean
   nextRoundDark: boolean
   bountyTargetTeamId: string | null
-  teamSwapPending: { fromTeamId: string; targetTeamId: string } | null
-  doubleOrNothingPending: { teamId: string; amount: number } | null
   currentTeamSetupIndex: number
   diceResults: Record<string, number>
+  dicePairs: Record<string, [number, number]>
   crystalAwards: Record<string, number>
   walkingTeamOrder: string[]
   walkingTeamIndex: number
+  itemPhaseOrder: string[]
+  itemPhaseTeamIndex: number
+  fieldOrder: Record<number, string[]>
   currentEvent: EventData | null
   shopTeamId: string | null
   fieldEffectPending: FieldEffectPending | null
   collisionPending: CollisionPending | null
-  minefieldSelectTeamId: string | null
   showMapOverlay: boolean
   preRoundSnapshot: Team[] | null
   lapBonusPending: { teamId: string; amount: number } | null
   pendingCollisionForAfter: CollisionPending | null
   showInfoOverlay: boolean
   streakShopTeamId: string | null
-  // Finale
   finaleActive: boolean
-  // Achievements
   achievementProgress: AchievementProgress
-  unlockedAchievements: Record<string, boolean>   // key = achievementId or achievementId_teamId
+  unlockedAchievements: Record<string, boolean>
   achievementQueue: AchievementQueueItem[]
 }
 

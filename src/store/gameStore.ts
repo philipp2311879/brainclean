@@ -46,18 +46,19 @@ const initialState: GameState = {
   darkRoundActive: false,
   nextRoundDark: false,
   bountyTargetTeamId: null,
-  teamSwapPending: null,
-  doubleOrNothingPending: null,
   currentTeamSetupIndex: 0,
   diceResults: {},
+  dicePairs: {},
   crystalAwards: {},
   walkingTeamOrder: [],
   walkingTeamIndex: 0,
+  itemPhaseOrder: [],
+  itemPhaseTeamIndex: 0,
+  fieldOrder: {},
   currentEvent: null,
   shopTeamId: null,
   fieldEffectPending: null,
   collisionPending: null,
-  minefieldSelectTeamId: null,
   showMapOverlay: false,
   showInfoOverlay: false,
   preRoundSnapshot: null,
@@ -122,7 +123,8 @@ interface GameStore extends GameState {
   setPlacement: (teamId: string, placement: number) => void
   confirmPlacements: () => void
   finishCrystalAward: () => void
-  useItem: (teamId: string, itemId: string, targetTeamId?: string, fieldIndex?: number, amount?: number) => void
+  useItem: (teamId: string, itemId: string, targetTeamId?: string) => void
+  advanceItemPhaseTeam: () => void
   skipItemPhase: () => void
   rollDice: () => void
   finishRolling: () => void
@@ -221,8 +223,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   confirmPlacements: () => {
     const {
       teams, darkRoundActive, nextRoundDark, bountyTargetTeamId,
-      teamSwapPending, doubleOrNothingPending, finaleActive,
-      currentRound,
+      finaleActive, currentRound,
       achievementProgress: prog, unlockedAchievements, achievementQueue,
     } = get()
 
@@ -231,27 +232,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Finale = 2x base ranges
     const finaleMultiplier = finaleActive ? 2 : 1
     const baseRanges: [number, number][] = [
-      [100 * finaleMultiplier, 150 * finaleMultiplier],
-      [75  * finaleMultiplier, 99  * finaleMultiplier],
-      [40  * finaleMultiplier, 74  * finaleMultiplier],
-      [10  * finaleMultiplier, 39  * finaleMultiplier],
+      [ 90 * finaleMultiplier, 120 * finaleMultiplier],
+      [ 65 * finaleMultiplier,  95 * finaleMultiplier],
+      [ 45 * finaleMultiplier,  70 * finaleMultiplier],
+      [ 25 * finaleMultiplier,  50 * finaleMultiplier],
     ]
 
-    let teamsWithPlacements = [...teams]
-
-    if (teamSwapPending) {
-      const { fromTeamId, targetTeamId } = teamSwapPending
-      const a = teamsWithPlacements.find((t) => t.id === fromTeamId)
-      const b = teamsWithPlacements.find((t) => t.id === targetTeamId)
-      if (a && b && a.placement !== null && b.placement !== null) {
-        const tmp = a.placement
-        teamsWithPlacements = teamsWithPlacements.map((t) => {
-          if (t.id === fromTeamId) return { ...t, placement: b.placement }
-          if (t.id === targetTeamId) return { ...t, placement: tmp }
-          return t
-        })
-      }
-    }
+    const teamsWithPlacements = [...teams]
 
     // ── Determine worst (last) placement for dark-round penalty ────────────
     const placementsUsed = teamsWithPlacements.map((t) => t.placement ?? 4)
@@ -277,10 +264,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ) {
           amount += 150
         }
-      }
-
-      if (doubleOrNothingPending?.teamId === team.id && team.placement === 1) {
-        amount += doubleOrNothingPending.amount * 3
       }
 
       awards[team.id] = amount
@@ -336,8 +319,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       darkRoundActive: nextRoundDark,
       nextRoundDark: false,
       bountyTargetTeamId: null,
-      teamSwapPending: null,
-      doubleOrNothingPending: null,
       preRoundSnapshot,
       streakShopTeamId,
       achievementProgress: newProg,
@@ -354,24 +335,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
       crystals: Math.max(0, t.crystals + (crystalAwards[t.id] ?? 0)),
     }))
 
-    // Comeback Kid: team that was last and now has most crystals
     const newProg = { ...prog }
     const newUnlocked = { ...unlockedAchievements }
     const newQueue = [...achievementQueue]
-    const sortedNew = [...updated].sort((a, b) => b.crystals - a.crystals)
     checkCrystalAchievements(updated, newProg, newUnlocked, newQueue, currentRound)
 
-    const hasItems = updated.some((t) => t.items.length > 0)
+    // Sequential item phase: worst placement first, random within same placement
+    const shuffled = [...updated].sort(() => Math.random() - 0.5)
+    const itemPhaseOrder = shuffled
+      .sort((a, b) => (b.placement ?? 0) - (a.placement ?? 0))
+      .map((t) => t.id)
+
+    const hasUsableItems = updated.some((t) => t.items.some((i) => i.type !== 'shield'))
     set({
       teams: updated,
       achievementProgress: newProg,
       unlockedAchievements: newUnlocked,
       achievementQueue: newQueue,
-      phase: hasItems ? 'itemPhase' : 'rolling',
+      itemPhaseOrder,
+      itemPhaseTeamIndex: 0,
+      phase: hasUsableItems ? 'itemPhase' : 'rolling',
     })
   },
 
-  useItem: (teamId, itemId, targetTeamId, _fieldIndex, amount) => {
+  useItem: (teamId, itemId, targetTeamId) => {
     let { teams, activeMines, fields, currentRound, achievementProgress: prog, unlockedAchievements, achievementQueue } = get()
     const team = teams.find((t) => t.id === teamId)
     const item = team?.items.find((i) => i.id === itemId)
@@ -438,20 +425,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       case 'turbo':
         teams = teams.map((t) => (t.id === teamId ? { ...t, turboThisRound: true } : t))
         break
-      case 'team_steal':
-        set({ teamSwapPending: { fromTeamId: teamId, targetTeamId: targetTeamId! } })
-        break
-      case 'double_or_nothing':
-        if (amount) {
-          teams = teams.map((t) =>
-            t.id === teamId ? { ...t, crystals: Math.max(0, t.crystals - amount) } : t,
-          )
-          set({ doubleOrNothingPending: { teamId, amount } })
-        }
-        break
     }
 
     set({ teams, activeMines, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
+  },
+
+  advanceItemPhaseTeam: () => {
+    const { itemPhaseOrder, itemPhaseTeamIndex } = get()
+    const next = itemPhaseTeamIndex + 1
+    if (next >= itemPhaseOrder.length) {
+      set({ phase: 'rolling' })
+    } else {
+      set({ itemPhaseTeamIndex: next })
+    }
   },
 
   skipItemPhase: () => set({ phase: 'rolling' }),
@@ -459,19 +445,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
   rollDice: () => {
     const { teams, darkRoundActive } = get()
     const results: Record<string, number> = {}
+    const pairs: Record<string, [number, number]> = {}
     for (const team of teams) {
       if (team.anchoredThisRound) {
         results[team.id] = 0
+        pairs[team.id] = [0, 0]
       } else if (team.turboThisRound) {
-        results[team.id] = 6
+        results[team.id] = 12
+        pairs[team.id] = [6, 6]
       } else {
-        let roll = Math.floor(Math.random() * 6) + 1
+        const d1 = Math.floor(Math.random() * 6) + 1
+        const d2 = Math.floor(Math.random() * 6) + 1
+        let roll = d1 + d2
         if (darkRoundActive && team.placement === 1) roll += Math.floor(Math.random() * 6) + 1
         if (team.doubleStepThisRound) roll *= 2
         results[team.id] = roll
+        pairs[team.id] = [d1, d2]
       }
     }
-    set({ diceResults: results })
+    set({ diceResults: results, dicePairs: pairs })
   },
 
   finishRolling: () => {
@@ -493,7 +485,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   advanceWalkingTeam: (newPosition, passedStart) => {
-    let { teams, activeMines, jackpotFieldIndex, currentRound, achievementProgress: prog, unlockedAchievements, achievementQueue } = get()
+    let { teams, activeMines, jackpotFieldIndex, fieldOrder, currentRound, achievementProgress: prog, unlockedAchievements, achievementQueue } = get()
     const { walkingTeamOrder, walkingTeamIndex } = get()
     const teamId = walkingTeamOrder[walkingTeamIndex]
     const team = teams.find((t) => t.id === teamId)
@@ -503,8 +495,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newUnlocked = { ...unlockedAchievements }
     const newQueue = [...achievementQueue]
 
-    // 1. Update position
+    // 1. Update position + field order tracking
     teams = teams.map((t) => (t.id === teamId ? { ...t, position: newPosition } : t))
+    // Remove team from every field, add to new position
+    const newFieldOrder: Record<number, string[]> = {}
+    for (const [k, v] of Object.entries(fieldOrder)) {
+      newFieldOrder[Number(k)] = (v as string[]).filter((id) => id !== teamId)
+    }
+    newFieldOrder[newPosition] = [...(newFieldOrder[newPosition] ?? []), teamId]
 
     // 2. Lap bonus
     const lapBonus = passedStart ? 100 : 0
@@ -518,7 +516,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeMines = activeMines.filter((m) => m !== mine)
       if (teams.find((t) => t.id === teamId)!.hasShield) {
         teams = teams.map((t) => (t.id === teamId ? { ...t, hasShield: false } : t))
-        set({ teams, activeMines, lapBonusPending: lapBonus ? { teamId, amount: lapBonus } : null, pendingCollisionForAfter: null, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
+        set({ teams, activeMines, fieldOrder: newFieldOrder, lapBonusPending: lapBonus ? { teamId, amount: lapBonus } : null, pendingCollisionForAfter: null, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
         get()._processFieldEffect(teamId, newPosition, teams, activeMines, jackpotFieldIndex)
       } else {
         teams = teams.map((t) =>
@@ -527,7 +525,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         newProg.mineHits[teamId] = (newProg.mineHits[teamId] ?? 0) + 1
         tryUnlock('minenopfer', teamId, true, newUnlocked, newQueue, teams, currentRound)
         set({
-          teams, activeMines,
+          teams, activeMines, fieldOrder: newFieldOrder,
           lapBonusPending: lapBonus ? { teamId, amount: lapBonus } : null,
           pendingCollisionForAfter: null,
           fieldEffectPending: { teamId, fieldType: 'trap', crystalDelta: -100, isMine: true },
@@ -546,15 +544,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       checkCrystalAchievements(teams, newProg, newUnlocked, newQueue, currentRound)
     }
 
-    // 5. Collision
+    // 5. Collision — steal from the last-landed team on this field
     let pendingCollision: typeof initialState['pendingCollisionForAfter'] = null
-    const others = teams.filter((t) => t.id !== teamId && t.position === newPosition)
-    if (others.length > 0) {
-      const defender = others[0]
-      if (defender.hasShield) {
+    const othersAtField = (newFieldOrder[newPosition] ?? []).filter((id) => id !== teamId)
+    if (othersAtField.length > 0) {
+      const lastDefenderId = othersAtField[othersAtField.length - 1]
+      const defender = teams.find((t) => t.id === lastDefenderId)
+      if (defender && defender.hasShield) {
         teams = teams.map((t) => (t.id === defender.id ? { ...t, hasShield: false } : t))
         pendingCollision = { attackerTeamId: teamId, defenderTeamId: defender.id, crystalsStolen: 0, blocked: true }
-      } else {
+      } else if (defender) {
         const stolen = Math.min(Math.floor(Math.random() * 26) + 25, defender.crystals)
         teams = teams.map((t) => {
           if (t.id === teamId)      return { ...t, crystals: t.crystals + stolen }
@@ -569,6 +568,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       teams, activeMines, jackpotFieldIndex,
+      fieldOrder: newFieldOrder,
       pendingCollisionForAfter: pendingCollision,
       lapBonusPending: lapBonus ? { teamId, amount: lapBonus } : null,
       achievementProgress: newProg,
@@ -637,7 +637,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
       get()._applyEvent(randomEvent(), teams, mines, jackpot)
     } else if (field.type === 'shop') {
-      set({ shopTeamId: teamId, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
+      const currentTeam = teams.find((t) => t.id === teamId)
+      const minPrice = 50  // Anker is cheapest
+      if (!currentTeam || currentTeam.crystals < minPrice) {
+        set({
+          fieldEffectPending: { teamId, fieldType: 'shop', crystalDelta: 0, shopDenied: true },
+          achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue,
+        })
+      } else {
+        set({ shopTeamId: teamId, achievementProgress: newProg, unlockedAchievements: newUnlocked, achievementQueue: newQueue })
+      }
     } else if (field.type === 'item') {
       const item = randomItemFromField()
       const updated = teams.map((t) =>

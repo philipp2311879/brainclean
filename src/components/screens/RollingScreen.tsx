@@ -9,11 +9,11 @@ import { soundManager } from '../../lib/soundManager'
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 
-function DiceDisplay({ value, rolling, color }: { value: number; rolling: boolean; color: string }) {
-  const [display, setDisplay] = useState(1)
+function SingleDie({ value, rolling, color }: { value: number; rolling: boolean; color: string }) {
+  const [display, setDisplay] = useState(value || 1)
 
   useEffect(() => {
-    if (!rolling) { setDisplay(value); return }
+    if (!rolling) { setDisplay(value || 1); return }
     const interval = setInterval(() => setDisplay(Math.floor(Math.random() * 6) + 1), 80)
     return () => clearInterval(interval)
   }, [rolling, value])
@@ -26,20 +26,20 @@ function DiceDisplay({ value, rolling, color }: { value: number; rolling: boolea
           : { rotate: 0, scale: 1 }
       }
       transition={{ duration: 0.45, repeat: rolling ? Infinity : 0 }}
-      className="w-24 h-24 rounded-2xl flex items-center justify-center text-6xl select-none border-2"
+      className="w-14 h-14 rounded-xl flex items-center justify-center text-4xl select-none border-2"
       style={{
         background: rolling ? '#f8fafc' : '#ffffff',
         borderColor: rolling ? '#e2e8f0' : color,
-        boxShadow: rolling ? '0 2px 8px rgba(0,0,0,0.08)' : `0 6px 20px ${color}44`,
+        boxShadow: rolling ? '0 2px 8px rgba(0,0,0,0.08)' : `0 4px 14px ${color}44`,
       }}
     >
-      {DICE_FACES[display - 1]}
+      {value === 0 ? '⚀' : DICE_FACES[(display - 1) % 6]}
     </motion.div>
   )
 }
 
 export function RollingScreen() {
-  const { teams, diceResults, rollDice, finishRolling } = useGameStore()
+  const { teams, diceResults, dicePairs, rollDice, finishRolling } = useGameStore()
   const [rolling, setRolling] = useState(false)
   const [revealed, setRevealed] = useState(false)
 
@@ -56,60 +56,74 @@ export function RollingScreen() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center screen-base p-8 pt-20">
-      <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-10">
-        <h1 className="font-display text-5xl text-text-primary mb-2">
+    <div className="w-full h-full flex flex-col items-center justify-center screen-base p-4 pt-20">
+      <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-8">
+        <h1 className="font-display text-4xl md:text-5xl text-text-primary mb-2">
           🎲 <span className="text-accent-blue">WÜRFELN</span>
         </h1>
-        <p className="text-text-secondary text-xl font-body">Alle Teams würfeln gleichzeitig</p>
+        <p className="text-text-secondary text-lg font-body">Alle Teams würfeln gleichzeitig</p>
       </motion.div>
 
       {/* Dice cards */}
-      <div className="flex flex-wrap gap-6 justify-center mb-10">
-        {teams.map((team, i) => (
-          <motion.div
-            key={team.id}
-            initial={{ y: 24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <GlassPanel className="p-6 flex flex-col items-center gap-4 w-44" accent={resolveTeamColor(team.jerseyColor, team.avatar.color)}>
-              <AvatarRingWrapper
-                avatar={team.avatar}
-                jerseyColor={team.jerseyColor}
-                outerSize={64}
-                style={{ boxShadow: `0 4px 12px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}44` }}
-              />
-              <div className="font-display text-text-primary text-lg">{team.name}</div>
+      <div className="flex flex-wrap gap-4 justify-center mb-8">
+        {teams.map((team, i) => {
+          const tColor = resolveTeamColor(team.jerseyColor, team.avatar.color)
+          const pair = dicePairs[team.id] ?? [1, 1]
+          const total = diceResults[team.id] ?? 2
 
-              <DiceDisplay value={diceResults[team.id] ?? 1} rolling={rolling} color={resolveTeamColor(team.jerseyColor, team.avatar.color)} />
+          return (
+            <motion.div
+              key={team.id}
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <GlassPanel className="p-4 flex flex-col items-center gap-3 w-40" accent={tColor}>
+                <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={56}
+                  style={{ boxShadow: `0 4px 12px ${tColor}44` }} />
+                <div className="font-display text-text-primary text-base leading-tight text-center">{team.name}</div>
 
-              <AnimatePresence>
-                {revealed && diceResults[team.id] !== undefined && (
-                  <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="font-display text-2xl text-center"
-                    style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}
-                  >
-                    {team.anchoredThisRound ? (
-                      <span className="text-text-secondary text-base">⚓ 0 Schritte</span>
-                    ) : (
-                      <>
-                        {diceResults[team.id]}
-                        <span className="text-text-secondary text-base ml-1">
-                          Schritt{diceResults[team.id] !== 1 ? 'e' : ''}
-                        </span>
-                        {team.turboThisRound && <span className="ml-1">🚀</span>}
-                        {team.doubleStepThisRound && <span className="ml-1">👟</span>}
-                      </>
-                    )}
-                  </motion.div>
+                {/* Two dice */}
+                {team.anchoredThisRound ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-4xl">⚓</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <SingleDie value={pair[0]} rolling={rolling} color={tColor} />
+                    <span className="font-display text-[#94a3b8] text-base">+</span>
+                    <SingleDie value={pair[1]} rolling={rolling} color={tColor} />
+                  </div>
                 )}
-              </AnimatePresence>
-            </GlassPanel>
-          </motion.div>
-        ))}
+
+                {/* Result */}
+                <AnimatePresence>
+                  {revealed && diceResults[team.id] !== undefined && (
+                    <motion.div
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="font-display text-2xl text-center"
+                      style={{ color: tColor }}
+                    >
+                      {team.anchoredThisRound ? (
+                        <span className="text-text-secondary text-base">0 Schritte</span>
+                      ) : (
+                        <>
+                          <span className="text-3xl">{total}</span>
+                          <span className="text-text-secondary text-sm ml-1">
+                            Schritt{total !== 1 ? 'e' : ''}
+                          </span>
+                          {team.turboThisRound && <div className="text-sm">🚀 Turbo!</div>}
+                          {team.doubleStepThisRound && <div className="text-sm">👟 ×2</div>}
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </GlassPanel>
+            </motion.div>
+          )
+        })}
       </div>
 
       {/* CTA */}

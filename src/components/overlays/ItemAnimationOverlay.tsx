@@ -30,11 +30,9 @@ const ANIM_MS: Partial<Record<ItemType, number>> = {
   shield: 2800,
   anchor: 3400,
   double_step: 2800,
-  position_swap: 4400,
+  position_swap: 4800,
   minefield: 5800,
   turbo: 2800,
-  team_steal: 3400,
-  double_or_nothing: 3400,
 }
 
 // ── Sub-animations ──────────────────────────────────────────────────────────
@@ -217,7 +215,7 @@ function PositionSwapAnim({ usingTeam, targetTeam, swapFromPos, swapToPos }: {
           style={{ left: 10, top: 0 }}
           initial={{ x: 0 }}
           animate={{ x: 148 }}
-          transition={{ duration: 1.8, delay: 0.5, ease: 'easeInOut' }}
+          transition={{ duration: 3.5, delay: 0.5, ease: 'easeInOut' }}
         >
           <AvatarRingWrapper avatar={usingTeam.avatar} jerseyColor={usingTeam.jerseyColor} outerSize={64} />
           <span className="font-display text-xs text-[#0f172a]">{usingTeam.name}</span>
@@ -236,7 +234,7 @@ function PositionSwapAnim({ usingTeam, targetTeam, swapFromPos, swapToPos }: {
             style={{ right: 10, top: 0 }}
             initial={{ x: 0 }}
             animate={{ x: -148 }}
-            transition={{ duration: 1.8, delay: 0.5, ease: 'easeInOut' }}
+            transition={{ duration: 3.5, delay: 0.5, ease: 'easeInOut' }}
           >
             <AvatarRingWrapper avatar={targetTeam.avatar} jerseyColor={targetTeam.jerseyColor} outerSize={64} />
             <span className="font-display text-xs text-[#0f172a]">{targetTeam.name}</span>
@@ -247,7 +245,7 @@ function PositionSwapAnim({ usingTeam, targetTeam, swapFromPos, swapToPos }: {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 2.8 }}
+        transition={{ delay: 4.2 }}
         className="font-display text-xl text-[#10b981] mt-3"
       >🔄 Plätze getauscht!</motion.div>
     </div>
@@ -358,81 +356,6 @@ function TurboAnim({ usingTeam }: { usingTeam: Team }) {
   )
 }
 
-function TeamStealAnim({ usingTeam, targetTeam }: { usingTeam: Team; targetTeam: Team | null }) {
-  return (
-    <div className="text-center">
-      <h2 className="font-display text-2xl text-[#0f172a] mb-5">TEAMKLAU!</h2>
-      <div className="flex items-center justify-center gap-4 mb-5">
-        <AvatarCol team={usingTeam} />
-        <div className="relative w-16 h-12 flex items-center justify-center overflow-visible">
-          <motion.div
-            initial={{ x: -35, opacity: 0 }}
-            animate={{ x: [-35, 0, 35], opacity: [0, 1, 0] }}
-            transition={{ duration: 1.4, delay: 0.3, ease: 'easeInOut' }}
-            className="absolute text-3xl"
-          >🦹</motion.div>
-        </div>
-        {targetTeam && (
-          <div className="relative">
-            <AvatarRingWrapper avatar={targetTeam.avatar} jerseyColor={targetTeam.jerseyColor} outerSize={64} />
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [0, 1.2, 0.85], opacity: [0, 0.65, 0.5] }}
-              transition={{ delay: 1.7, type: 'spring' }}
-              className="absolute inset-0 flex items-center justify-center text-3xl pointer-events-none"
-            >🦹</motion.div>
-            <div className="font-display text-sm text-[#0f172a] text-center mt-1">{targetTeam.name}</div>
-          </div>
-        )}
-      </div>
-      <motion.p
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 2.0 }}
-        className="text-[#475569] font-body text-base"
-      >🦹 Platzierungen werden beim nächsten Minispiel getauscht!</motion.p>
-    </div>
-  )
-}
-
-function DoubleOrNothingAnim({ usingTeam, crystalDeltas }: { usingTeam: Team; crystalDeltas: Record<string, number> }) {
-  const bet = Math.abs(crystalDeltas[usingTeam.id] ?? 0)
-  return (
-    <div className="text-center">
-      <h2 className="font-display text-2xl text-[#0f172a] mb-4">DOPPEL-ODER-NICHTS!</h2>
-      <div className="flex flex-col items-center gap-3 mb-4 relative">
-        <AvatarRingWrapper avatar={usingTeam.avatar} jerseyColor={usingTeam.jerseyColor} outerSize={72} />
-        <div className="font-display text-xl text-[#0f172a]">{usingTeam.name}</div>
-        <div className="relative h-14 w-full flex justify-center">
-          {[0, 1, 2].map((i) => (
-            <motion.div key={i}
-              initial={{ y: 0, x: (i - 1) * 22, opacity: 1 }}
-              animate={{ y: -55, x: (i - 1) * 22, opacity: 0 }}
-              transition={{ duration: 1.1, delay: 0.2 + i * 0.14, ease: 'easeOut' }}
-              className="absolute text-2xl"
-            >💎</motion.div>
-          ))}
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: [0.7, 1.15, 1], opacity: 1 }}
-            transition={{ delay: 0.5, type: 'spring' }}
-            className="absolute text-3xl"
-            style={{ top: -4 }}
-          >💰</motion.div>
-        </div>
-      </div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.4 }}
-        className="font-display text-3xl text-[#f59e0b] mb-1"
-      >{bet} 💎 gesetzt!</motion.div>
-      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.8 }} className="text-[#475569] font-body text-sm">
-        🎰 Bei 1. Platz: ×3 zurück. Sonst: verloren!
-      </motion.p>
-    </div>
-  )
-}
 
 // ── Main export ─────────────────────────────────────────────────────────────
 
@@ -482,12 +405,6 @@ export function ItemAnimationOverlay({
       break
     case 'turbo':
       content = <TurboAnim usingTeam={usingTeam} />
-      break
-    case 'team_steal':
-      content = <TeamStealAnim usingTeam={usingTeam} targetTeam={targetTeam} />
-      break
-    case 'double_or_nothing':
-      content = <DoubleOrNothingAnim usingTeam={usingTeam} crystalDeltas={crystalDeltas} />
       break
   }
 
