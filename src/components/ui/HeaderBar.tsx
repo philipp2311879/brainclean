@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
-import { SoundControl } from './SoundControl'
 import { AvatarRingWrapper } from './AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
 import type { Team } from '../../types'
@@ -14,6 +13,10 @@ const BACK_PHASES = new Set([
 const INFO_PHASES = new Set([
   'minigameAnnounce', 'minigameActive', 'placementInput',
   'crystalAward', 'itemPhase', 'rolling', 'walking', 'roundEnd', 'streakShop',
+])
+const ABORT_PHASES = new Set([
+  'finaleAnnounce', 'minigameAnnounce', 'minigameActive', 'placementInput',
+  'streakShop', 'crystalAward', 'itemPhase', 'rolling', 'walking', 'roundEnd',
 ])
 
 // ── Animated crystal counter per team ────────────────────────────────────────
@@ -33,13 +36,12 @@ function CrystalCounter({ team }: { team: Team }) {
     const diff = newVal - oldVal
     setDelta(diff)
 
-    // Cancel any in-flight animation
     cancelAnimationFrame(rafRef.current)
     clearTimeout(badgeTimerRef.current)
 
     const start = displayed
     const startTime = performance.now()
-    const duration = Math.min(1600, 400 + Math.abs(diff) * 4) // scale with size of change
+    const duration = Math.min(1600, 400 + Math.abs(diff) * 4)
 
     const animate = (now: number) => {
       const elapsed = Math.min(now - startTime, duration)
@@ -91,7 +93,6 @@ function CrystalCounter({ team }: { team: Team }) {
         </motion.span>
       </div>
 
-      {/* Delta badge */}
       <AnimatePresence>
         {delta !== null && (
           <motion.span
@@ -118,57 +119,111 @@ function CrystalCounter({ team }: { team: Team }) {
 export function HeaderBar() {
   const {
     teams, currentRound, totalRounds, phase,
-    goBackToPreviousDecision, showInfoOverlay, setShowInfoOverlay,
+    goBackToPreviousDecision, showInfoOverlay, setShowInfoOverlay, abortGame,
   } = useGameStore()
 
-  if (phase === 'title' || phase === 'setup' || phase === 'teamSetup' || phase === 'mapSetup') return null
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false)
 
+  if (phase === 'title' || phase === 'setup' || phase === 'teamSetup' || phase === 'mapSetup' || phase === 'fredEvent') return null
 
   const showBack = BACK_PHASES.has(phase)
   const showInfo = INFO_PHASES.has(phase)
+  const showAbort = ABORT_PHASES.has(phase)
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-[#e5e7eb] shadow-card flex items-center px-4 gap-2">
-      {/* Left section: back + info + round */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        {showBack && (
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={goBackToPreviousDecision}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d1d5db] bg-white text-[#475569] font-body font-semibold text-sm cursor-pointer hover:border-[#4f8cff] hover:text-[#4f8cff] transition-all"
-          >
-            ←
-          </motion.button>
-        )}
-        {showInfo && (
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={() => setShowInfoOverlay(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d1d5db] bg-white text-[#475569] font-body font-semibold text-sm cursor-pointer hover:border-[#4f8cff] hover:text-[#4f8cff] transition-all"
-          >
-            ℹ️
-          </motion.button>
-        )}
-        <div className="font-display text-[#475569] text-base whitespace-nowrap ml-1">
-          <span className="text-[#4f8cff]">{currentRound}</span>
-          <span className="text-[#d1d5db]">/{totalRounds}</span>
+    <>
+      <div className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-[#e5e7eb] shadow-card flex items-center px-4 gap-2">
+        {/* Left: back + info + round */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {showBack && (
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={goBackToPreviousDecision}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d1d5db] bg-white text-[#475569] font-body font-semibold text-sm cursor-pointer hover:border-[#4f8cff] hover:text-[#4f8cff] transition-all"
+            >
+              ←
+            </motion.button>
+          )}
+          {showInfo && (
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setShowInfoOverlay(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d1d5db] bg-white text-[#475569] font-body font-semibold text-sm cursor-pointer hover:border-[#4f8cff] hover:text-[#4f8cff] transition-all"
+            >
+              ℹ️
+            </motion.button>
+          )}
+          <div className="font-display text-[#475569] text-base whitespace-nowrap ml-1">
+            <span className="text-[#4f8cff]">{currentRound}</span>
+            <span className="text-[#d1d5db]">/{totalRounds}</span>
+          </div>
+        </div>
+
+        {/* Center: logo */}
+        <div className="flex-1 flex justify-center">
+          <span className="font-display text-lg tracking-widest text-[#0f172a]">
+            BRAIN<span className="text-[#4f8cff]">ARENA</span>
+          </span>
+        </div>
+
+        {/* Right: abort button + crystal counters */}
+        <div className="flex gap-2 items-center flex-shrink-0">
+          {showAbort && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowAbortConfirm(true)}
+              title="Spiel beenden"
+              className="flex items-center justify-center w-9 h-9 rounded-lg border border-[#d1d5db] bg-white text-[#475569] cursor-pointer hover:border-[#ef4444] hover:text-[#ef4444] transition-all text-base select-none"
+            >
+              🏁
+            </motion.button>
+          )}
+          {teams.map((team) => (
+            <CrystalCounter key={team.id} team={team} />
+          ))}
         </div>
       </div>
 
-      {/* Center: logo */}
-      <div className="flex-1 flex justify-center">
-        <span className="font-display text-lg tracking-widest text-[#0f172a]">
-          BRAIN<span className="text-[#4f8cff]">ARENA</span>
-        </span>
-      </div>
-
-      {/* Right: sound control + team score counters */}
-      <div className="flex gap-2 items-center flex-shrink-0">
-        <SoundControl />
-        {teams.map((team) => (
-          <CrystalCounter key={team.id} team={team} />
-        ))}
-      </div>
-    </div>
+      {/* Abort confirmation modal */}
+      <AnimatePresence>
+        {showAbortConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-[200]"
+            onClick={() => setShowAbortConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl border-2 border-[#ef4444]"
+            >
+              <div className="text-5xl text-center mb-4">🏁</div>
+              <h2 className="font-display text-2xl text-[#0f172a] mb-2 text-center">Spiel beenden?</h2>
+              <p className="font-body text-[#475569] text-center mb-6">
+                Zur Siegerehrung mit dem aktuellen Kristallstand?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAbortConfirm(false)}
+                  className="flex-1 py-3 rounded-xl border-2 border-[#d1d5db] font-display text-[#475569] hover:border-[#94a3b8] transition-all cursor-pointer"
+                >
+                  ABBRECHEN
+                </button>
+                <button
+                  onClick={() => { abortGame(); setShowAbortConfirm(false) }}
+                  className="flex-1 py-3 rounded-xl border-2 border-[#ef4444] bg-[#ef4444] font-display text-white hover:bg-[#dc2626] transition-all cursor-pointer"
+                >
+                  JA, BEENDEN
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

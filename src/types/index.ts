@@ -6,6 +6,7 @@ export type GamePhase =
   | 'teamSetup'
   | 'mapSetup'
   | 'finaleAnnounce'
+  | 'fredEvent'
   | 'minigameAnnounce'
   | 'minigameActive'
   | 'placementInput'
@@ -165,6 +166,9 @@ export interface GameState {
   showInfoOverlay: boolean
   streakShopTeamId: string | null
   finaleActive: boolean
+  fredHasAppeared: boolean
+  fredTargetTeamIds: string[]
+  fredStolenAmounts: Record<string, number>
   achievementProgress: AchievementProgress
   unlockedAchievements: Record<string, boolean>
   achievementQueue: AchievementQueueItem[]

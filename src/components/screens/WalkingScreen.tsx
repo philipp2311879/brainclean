@@ -8,8 +8,6 @@ import { EventOverlay } from '../overlays/EventOverlay'
 import { FIELD_TOTAL } from '../../utils/mapGenerator'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
-import { soundManager } from '../../lib/soundManager'
-
 const STEP_DELAY       = 600
 const HIGHLIGHT_HOLD   = 200
 const LAST_FIELD_PAUSE = 1000
@@ -82,21 +80,18 @@ export function WalkingScreen() {
       const isShopHere = fields[nextPos]?.type === 'shop'
 
       if (isLastStep) {
-        soundManager.playSFX('land')
         setTimeout(() => {
           setHighlightField(undefined)
           setIsMoving(false)
           advanceWalkingTeam(nextPos, startPos + total >= FIELD_TOTAL)
         }, LAST_FIELD_PAUSE)
       } else if (isShopHere) {
-        soundManager.playSFX('step')
         setTimeout(() => {
           setHighlightField(undefined)
           setIsMoving(false)
           setMidWalkShop({ startPos, step: nextStep, total })
         }, HIGHLIGHT_HOLD + 200)
       } else {
-        soundManager.playSFX('step')
         setTimeout(() => setHighlightField(undefined), HIGHLIGHT_HOLD)
         moveStep(startPos, nextStep, total)
       }
@@ -119,12 +114,6 @@ export function WalkingScreen() {
     if (fieldEffectPending) {
       setAnimatingPosition(undefined)
       setIsMoving(false)
-      if (fieldEffectPending.crystalDelta > 0) soundManager.playSFX('crystal_gain')
-      else if (fieldEffectPending.crystalDelta < 0) {
-        // Mine trap vs normal trap
-        const isMine = fieldEffectPending.fieldType === 'trap' && fieldEffectPending.crystalDelta === -120
-        soundManager.playSFX(isMine ? 'mine_explode' : 'crystal_lose')
-      }
     }
     if (collisionPending) {
       setAnimatingPosition(undefined)
@@ -133,7 +122,6 @@ export function WalkingScreen() {
     if (lapBonusPending) {
       setAnimatingPosition(undefined)
       setIsMoving(false)
-      soundManager.playSFX('crystal_gain')
     }
   }, [fieldEffectPending, collisionPending, lapBonusPending])
 
@@ -142,7 +130,6 @@ export function WalkingScreen() {
     if (!collisionPending) { setCollisionStep('bang'); return }
     clearTimeout(collisionTimerRef.current)
     setCollisionStep('bang')
-    soundManager.playSFX(collisionPending.blocked ? 'shield_block' : 'collision')
     collisionTimerRef.current = setTimeout(() => {
       setCollisionStep('transfer')
       collisionTimerRef.current = setTimeout(() => setCollisionStep('result'), 1500)

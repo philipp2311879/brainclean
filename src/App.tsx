@@ -1,8 +1,6 @@
-import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGameStore } from './store/gameStore'
 import { HeaderBar } from './components/ui/HeaderBar'
-import { soundManager } from './lib/soundManager'
 import { GameBoard } from './components/board/GameBoard'
 import { AvatarRingWrapper } from './components/ui/AvatarDisplay'
 import { resolveTeamColor } from './data/avatars'
@@ -22,6 +20,7 @@ import { RoundEndScreen } from './components/screens/RoundEndScreen'
 import { GameOverScreen } from './components/screens/GameOverScreen'
 import { StreakShopScreen } from './components/screens/StreakShopScreen'
 import { FinaleAnnounceScreen } from './components/screens/FinaleAnnounceScreen'
+import { FredScreen } from './components/screens/FredScreen'
 import { DatabaseBootstrap } from './components/bootstrap/DatabaseBootstrap'
 
 const MAP_BUTTON_PHASES = new Set([
@@ -37,6 +36,7 @@ function Screen() {
     case 'teamSetup':        return <TeamSetupScreen />
     case 'mapSetup':         return <MapSetupScreen />
     case 'finaleAnnounce':   return <FinaleAnnounceScreen />
+    case 'fredEvent':        return <FredScreen />
     case 'minigameAnnounce': return <MinigameScreen />
     case 'minigameActive':   return <MinigameScreen />
     case 'placementInput':   return <PlacementScreen />
@@ -119,22 +119,6 @@ function MapFloatButton() {
 export default function App() {
   const phase = useGameStore((s) => s.phase)
   const { showInfoOverlay, setShowInfoOverlay } = useGameStore()
-
-  // Init AudioContext — unlock on first user gesture
-  useEffect(() => {
-    soundManager.init()
-    const unlock = () => {
-      soundManager.init()
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
-    }
-    document.addEventListener('click', unlock)
-    document.addEventListener('touchstart', unlock)
-    return () => {
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
-    }
-  }, [])
 
   return (
     <DatabaseBootstrap>

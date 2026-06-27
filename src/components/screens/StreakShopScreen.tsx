@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { ShopOverlay } from '../overlays/ShopOverlay'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
-import { soundManager } from '../../lib/soundManager'
-
 export function StreakShopScreen() {
   const { streakShopTeamId, teams, closeStreakShop } = useGameStore()
   const [shopVisible, setShopVisible] = useState(false)
@@ -15,7 +13,6 @@ export function StreakShopScreen() {
   const flames = '🔥'.repeat(Math.min(streakLevel, 5))
 
   useEffect(() => {
-    soundManager.playSFX('streak')
     const t = setTimeout(() => setShopVisible(true), 1600)
     return () => clearTimeout(t)
   }, [])

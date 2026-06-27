@@ -4,8 +4,6 @@ import { useGameStore } from '../../store/gameStore'
 import { Button } from '../ui/Button'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
-import { soundManager } from '../../lib/soundManager'
-
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
 const MEDAL_COLORS = ['#d97706', '#64748b', '#ea580c', '#94a3b8']
 const MEDAL_LABELS = ['1. Platz', '2. Platz', '3. Platz', '4. Platz']
@@ -50,9 +48,6 @@ export function CrystalAwardScreen() {
       )
       setParticles(pts)
 
-      // Play the sweep sound ONCE at the start of the counting animation
-      soundManager.playSFX('crystal_count')
-
       const frame = (now: number) => {
         const elapsed = Math.min(now - startTime, duration)
         const t = 1 - Math.pow(1 - elapsed / duration, 2.5) // ease-out
@@ -66,7 +61,6 @@ export function CrystalAwardScreen() {
         } else {
           setDone(true)
           setParticles([])
-          soundManager.playSFX('crystal_gain')
         }
       }
       rafRef.current = requestAnimationFrame(frame)
@@ -79,9 +73,9 @@ export function CrystalAwardScreen() {
   }, [])
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center screen-base p-8 pt-20">
-      {/* Title */}
-      <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-8">
+    <div className="w-full h-full flex flex-col pt-16 overflow-hidden screen-base">
+      {/* Header */}
+      <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex-shrink-0 text-center py-3 px-8">
         <h1 className="font-display text-5xl text-[#0f172a]">
           💎 <span className="text-[#f59e0b]">KRISTALLVERGABE</span>
         </h1>
@@ -90,7 +84,7 @@ export function CrystalAwardScreen() {
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
-            className="inline-block mt-2 px-5 py-1.5 rounded-full font-display text-lg border-2"
+            className="inline-block mt-1 px-5 py-1 rounded-full font-display text-lg border-2"
             style={darkRoundActive
               ? { background: '#7f1d1d', color: '#fca5a5', borderColor: '#ef4444' }
               : { background: '#fef3c7', color: '#d97706', borderColor: '#f59e0b' }}
@@ -98,89 +92,90 @@ export function CrystalAwardScreen() {
             {darkRoundActive ? '🔥 VIERFACHE KRISTALLE!' : '🏆 FINALE – DOPPELTE KRISTALLE!'}
           </motion.div>
         )}
-        <p className="text-[#475569] font-body text-xl mt-2">Alle Teams erhalten ihre Runden-Kristalle</p>
+        <p className="text-[#475569] font-body text-lg mt-1">Alle Teams erhalten ihre Runden-Kristalle</p>
       </motion.div>
 
-      {/* All teams grid */}
-      <div className="flex flex-wrap gap-5 justify-center mb-10 w-full max-w-4xl">
-        {sorted.map((team, rank) => {
-          const award = crystalAwards[team.id] ?? 0
-          const animated = animatedAwards[team.id] ?? 0
-          const total = team.crystals + animated
-          const teamParticles = particles.filter((p) => p.color === resolveTeamColor(team.jerseyColor, team.avatar.color))
+      {/* Scrollable teams grid */}
+      <div className="flex-1 overflow-y-auto px-6 pb-2 scrollbar-hide">
+        <div className="flex flex-wrap gap-5 justify-center w-full max-w-4xl mx-auto py-2">
+          {sorted.map((team, rank) => {
+            const animated = animatedAwards[team.id] ?? 0
+            const total = team.crystals + animated
+            const teamParticles = particles.filter((p) => p.color === resolveTeamColor(team.jerseyColor, team.avatar.color))
 
-          return (
-            <motion.div
-              key={team.id}
-              initial={{ y: 30, opacity: 0, scale: 0.9 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              transition={{ delay: rank * 0.1, type: 'spring', damping: 18 }}
-              className="card p-6 flex flex-col items-center w-52 relative overflow-hidden"
-              style={{ borderColor: resolveTeamColor(team.jerseyColor, team.avatar.color), borderWidth: 2 }}
-            >
-              {/* Particles */}
-              <div className="absolute inset-0 pointer-events-none">
-                {teamParticles.map((p) => <CrystalParticle key={p.id} color={p.color} />)}
-              </div>
-
-              {/* Placement medal */}
-              <div className="font-display text-4xl mb-1">{MEDALS[rank]}</div>
-              <div className="font-body text-sm font-bold mb-3" style={{ color: MEDAL_COLORS[rank] }}>
-                {MEDAL_LABELS[rank]}
-              </div>
-
-              {/* Avatar */}
+            return (
               <motion.div
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 1.8, repeat: Infinity, delay: rank * 0.3 }}
-                className="mb-3"
+                key={team.id}
+                initial={{ y: 30, opacity: 0, scale: 0.9 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                transition={{ delay: rank * 0.1, type: 'spring', damping: 18 }}
+                className="card p-6 flex flex-col items-center w-52 relative overflow-hidden"
+                style={{ borderColor: resolveTeamColor(team.jerseyColor, team.avatar.color), borderWidth: 2 }}
               >
-                <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={64} style={{ boxShadow: `0 4px 14px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}44` }} />
+                {/* Particles */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {teamParticles.map((p) => <CrystalParticle key={p.id} color={p.color} />)}
+                </div>
+
+                {/* Placement medal */}
+                <div className="font-display text-4xl mb-1">{MEDALS[rank]}</div>
+                <div className="font-body text-sm font-bold mb-3" style={{ color: MEDAL_COLORS[rank] }}>
+                  {MEDAL_LABELS[rank]}
+                </div>
+
+                {/* Avatar */}
+                <motion.div
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 1.8, repeat: Infinity, delay: rank * 0.3 }}
+                  className="mb-3"
+                >
+                  <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={64} style={{ boxShadow: `0 4px 14px ${resolveTeamColor(team.jerseyColor, team.avatar.color)}44` }} />
+                </motion.div>
+
+                <div className="font-display text-xl text-[#0f172a] mb-3">{team.name}</div>
+
+                {/* Award counter */}
+                <motion.div
+                  animate={animated > 0 ? { scale: [1, 1.06, 1] } : {}}
+                  transition={{ duration: 0.3 }}
+                  className="font-display text-4xl mb-1"
+                  style={{ color: '#10b981' }}
+                >
+                  +{animated}
+                  <span className="text-2xl ml-0.5">💎</span>
+                </motion.div>
+
+                {/* Running total */}
+                <div className="font-display text-base text-[#475569]">
+                  Gesamt: <span style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}>{total}</span> 💎
+                </div>
               </motion.div>
-
-              <div className="font-display text-xl text-[#0f172a] mb-3">{team.name}</div>
-
-              {/* Award counter */}
-              <motion.div
-                animate={animated > 0 ? { scale: [1, 1.06, 1] } : {}}
-                transition={{ duration: 0.3 }}
-                className="font-display text-4xl mb-1"
-                style={{ color: '#10b981' }}
-              >
-                +{animated}
-                <span className="text-2xl ml-0.5">💎</span>
-              </motion.div>
-
-              {/* Running total */}
-              <div className="font-display text-base text-[#475569]">
-                Gesamt: <span style={{ color: resolveTeamColor(team.jerseyColor, team.avatar.color) }}>{total}</span> 💎
-              </div>
-            </motion.div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
-      {/* Single CTA button — appears after animation */}
-      <AnimatePresence>
-        {done && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring' }}>
-            <Button size="xl" variant="gold" onClick={finishCrystalAward}>
-              🎲 WEITER ZUM WÜRFELN!
-            </Button>
+      {/* Fixed footer — always visible */}
+      <div className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex items-center justify-center" style={{ minHeight: 80 }}>
+        <AnimatePresence>
+          {done && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring' }}>
+              <Button size="xl" variant="gold" onClick={finishCrystalAward}>
+                🎲 WEITER ZUM WÜRFELN!
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {!done && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2">
+            {[0, 1, 2].map((i) => (
+              <motion.div key={i} className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 0.9, delay: i * 0.3, repeat: Infinity }} />
+            ))}
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Progress indicator while animating */}
-      {!done && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 mt-4">
-          {[0, 1, 2].map((i) => (
-            <motion.div key={i} className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 0.9, delay: i * 0.3, repeat: Infinity }} />
-          ))}
-        </motion.div>
-      )}
+      </div>
     </div>
   )
 }

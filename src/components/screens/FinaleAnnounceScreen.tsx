@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
-import { soundManager } from '../../lib/soundManager'
-
 const STARS = Array.from({ length: 20 }, (_, i) => ({
   x: 5 + Math.random() * 90,
   y: 5 + Math.random() * 90,
@@ -16,7 +14,6 @@ export function FinaleAnnounceScreen() {
   const [_, setPhase] = useState(false)
 
   useEffect(() => {
-    soundManager.playSFX('finale_announce')
     const t = setTimeout(() => {
       useGameStore.setState({ phase: 'minigameAnnounce' })
     }, 3500)

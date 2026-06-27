@@ -5,8 +5,6 @@ import { useGameStore } from '../../store/gameStore'
 import type { EventData, Team } from '../../types'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
-import { soundManager } from '../../lib/soundManager'
-
 function EvtAvatar({ team, size = 48 }: { team: Team; size?: number }) {
   return <AvatarRingWrapper avatar={team.avatar} jerseyColor={team.jerseyColor} outerSize={size} />
 }
@@ -233,13 +231,6 @@ export function EventOverlay({ event, onConfirm }: EventOverlayProps) {
 
   useEffect(() => {
     const t = setTimeout(() => setCanConfirm(true), AUTO_CONFIRM_DELAY)
-    // Play event-specific SFX
-    switch (event.id) {
-      case 'earthquake':    soundManager.playSFX('earthquake'); break
-      case 'revolution':    soundManager.playSFX('revolution'); break
-      case 'crystal_rain':  soundManager.playSFX('crystal_rain'); break
-      default:              soundManager.playSFX('event'); break
-    }
     return () => clearTimeout(t)
   }, [])
 

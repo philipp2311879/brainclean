@@ -14,6 +14,14 @@ import {
 
 let teamIdCounter = 0
 
+function computeFredTargets(teams: Team[]): string[] {
+  const progress = (t: Team) => t.lapsCompleted * FIELD_TOTAL + t.position
+  const shuffled = [...teams].sort(() => Math.random() - 0.5)
+  const sorted = shuffled.sort((a, b) => progress(a) - progress(b))
+  if (teams.length <= 2) return [sorted[0].id]
+  return [sorted[0].id, sorted[1].id]
+}
+
 function makeDefaultTeam(index: number): Team {
   return {
     id: `team-${++teamIdCounter}`,
@@ -66,6 +74,9 @@ const initialState: GameState = {
   pendingCollisionForAfter: null,
   streakShopTeamId: null,
   finaleActive: false,
+  fredHasAppeared: false,
+  fredTargetTeamIds: [],
+  fredStolenAmounts: {},
   achievementProgress: initialAchievementProgress(),
   unlockedAchievements: {},
   achievementQueue: [],
@@ -137,6 +148,8 @@ interface GameStore extends GameState {
   closeShop: () => void
   closeStreakShop: () => void
   nextRound: () => void
+  finishFredEvent: () => void
+  abortGame: () => void
   newGame: () => void
   goBackToPreviousDecision: () => void
   setShowMapOverlay: (show: boolean) => void
@@ -783,18 +796,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   nextRound: () => {
-    const { currentRound, totalRounds } = get()
+    const { currentRound, totalRounds, fredHasAppeared, teams } = get()
     if (currentRound >= totalRounds) {
       set({ phase: 'gameOver' })
     } else {
       const next = currentRound + 1
-      if (next === totalRounds) {
-        // Last round — show finale announcement first
+      if (currentRound === 2 && totalRounds > 2 && !fredHasAppeared) {
+        const targets = computeFredTargets(teams)
+        const fredStolenAmounts: Record<string, number> = {}
+        for (const tid of targets) {
+          const t = teams.find((t) => t.id === tid)
+          if (t) fredStolenAmounts[tid] = Math.max(20, Math.round(t.crystals * (0.15 + Math.random() * 0.10)))
+        }
+        set({ currentRound: next, phase: 'fredEvent', crystalAwards: {}, fredHasAppeared: true, fredTargetTeamIds: targets, fredStolenAmounts })
+      } else if (next === totalRounds) {
         set({ currentRound: next, phase: 'finaleAnnounce', crystalAwards: {}, finaleActive: true })
       } else {
         set({ currentRound: next, phase: 'minigameAnnounce', crystalAwards: {} })
       }
     }
+  },
+
+  abortGame: () => set({ phase: 'gameOver' }),
+
+  finishFredEvent: () => {
+    const { currentRound, totalRounds, fredTargetTeamIds, fredStolenAmounts, teams } = get()
+    const updated = teams.map((t) =>
+      fredTargetTeamIds.includes(t.id)
+        ? { ...t, crystals: Math.max(0, t.crystals - (fredStolenAmounts[t.id] ?? 0)) }
+        : t,
+    )
+    const isFinale = currentRound === totalRounds
+    set({
+      teams: updated,
+      phase: isFinale ? 'finaleAnnounce' : 'minigameAnnounce',
+      crystalAwards: {},
+      finaleActive: isFinale,
+    })
   },
 
   newGame: () => {

@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { useMinigameStore } from '../../store/minigameStore'
 import { Button } from '../ui/Button'
-import { soundManager } from '../../lib/soundManager'
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   inhibition:  { bg: '#fee2e2', text: '#b91c1c', border: '#ef4444' },
@@ -48,7 +47,7 @@ function VideoPlayer({ videoUrl, hasAudio }: { videoUrl: string | null; hasAudio
   const src = `${embedUrl}?autoplay=1&mute=${muted ? 1 : 0}&rel=0&start=0`
 
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-2 h-full">
       <div className="relative rounded-2xl overflow-hidden border-2 border-[#e5e7eb] bg-black flex-1 min-h-0">
         <iframe
           key={videoKey}
@@ -82,16 +81,8 @@ export function MinigameScreen() {
   const { phase, startMinigame, endMinigame, currentRound, totalRounds, darkRoundActive } = useGameStore()
   const { currentMinigame, pickNext } = useMinigameStore()
 
-  // Pick a new minigame when announce phase mounts + play round sound
   useEffect(() => {
-    if (phase === 'minigameAnnounce') {
-      pickNext()
-      if (currentRound === totalRounds) {
-        soundManager.playSFX('finale_announce')
-      } else {
-        soundManager.playSFX('round_start')
-      }
-    }
+    if (phase === 'minigameAnnounce') pickNext()
   }, [])
 
   const mg = currentMinigame
@@ -101,37 +92,37 @@ export function MinigameScreen() {
   if (phase === 'minigameAnnounce') {
     return (
       <div className="w-full h-full flex flex-col screen-base pt-16 overflow-hidden">
-        {/* Round banner */}
-        <div className="flex-shrink-0 text-center py-4 px-6">
+        {/* Round banner — fixed height */}
+        <div className="flex-shrink-0 text-center py-3 px-6">
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 160 }}
           >
-            <span className="font-display text-5xl text-[#0f172a]">
+            <span className="font-display text-4xl text-[#0f172a]">
               RUNDE <span className="text-[#4f8cff]">{currentRound}</span>
-              <span className="text-[#94a3b8] text-3xl"> /{totalRounds}</span>
+              <span className="text-[#94a3b8] text-2xl"> /{totalRounds}</span>
             </span>
           </motion.div>
           {darkRoundActive && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="mt-2 inline-block px-5 py-1.5 rounded-full bg-purple-100 border-2 border-purple-400 text-purple-700 font-display text-base"
+              className="mt-1 inline-block px-4 py-1 rounded-full bg-purple-100 border-2 border-purple-400 text-purple-700 font-display text-sm"
             >
               🌑 DUNKLE RUNDE: Sieger würfelt 2×, Letzter bekommt 0 Kristalle!
             </motion.div>
           )}
         </div>
 
-        {/* Two-column layout */}
-        <div className="flex-1 flex gap-5 px-6 pb-4 min-h-0">
+        {/* Two-column layout — takes remaining space */}
+        <div className="flex-1 flex gap-5 px-6 min-h-0 pb-2">
           {/* Left: video */}
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-0 min-h-0"
           >
             {mg
               ? <VideoPlayer videoUrl={mg.video_url} hasAudio={mg.has_audio} />
@@ -143,24 +134,24 @@ export function MinigameScreen() {
             }
           </motion.div>
 
-          {/* Right: info */}
+          {/* Right: info card */}
           <motion.div
             initial={{ x: 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-80 flex-shrink-0 flex flex-col gap-4"
+            className="w-80 flex-shrink-0 min-h-0"
           >
-            <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 flex-1 flex flex-col">
+            <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 h-full flex flex-col overflow-hidden">
               {mg ? (
                 <>
-                  <h2 className="font-display text-3xl text-[#0f172a] mb-3 leading-tight">{mg.name}</h2>
+                  <h2 className="font-display text-2xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">{mg.name}</h2>
                   <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-body font-semibold mb-4 self-start"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-body font-semibold mb-3 self-start flex-shrink-0"
                     style={{ background: catStyle.bg, color: catStyle.text, borderColor: catStyle.border }}
                   >
                     🏷️ {mg.category ?? 'Allgemein'}
                   </div>
-                  <p className="text-[#475569] font-body text-base leading-relaxed flex-1 overflow-y-auto">
+                  <p className="text-[#475569] font-body text-sm leading-relaxed flex-1 overflow-y-auto scrollbar-hide">
                     {mg.description}
                   </p>
                 </>
@@ -170,11 +161,14 @@ export function MinigameScreen() {
                 </div>
               )}
             </div>
-
-            <Button size="xl" onClick={startMinigame} fullWidth>
-              ⚡ MINISPIEL STARTEN!
-            </Button>
           </motion.div>
+        </div>
+
+        {/* Fixed footer — button always visible */}
+        <div className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex justify-center">
+          <Button size="xl" onClick={startMinigame} fullWidth>
+            ⚡ MINISPIEL STARTEN!
+          </Button>
         </div>
       </div>
     )
@@ -183,13 +177,13 @@ export function MinigameScreen() {
   // ── Active screen ─────────────────────────────────────────────────────────
   return (
     <div className="w-full h-full flex flex-col screen-base pt-16 overflow-hidden">
-      {/* Two-column layout — same as announce but with BEENDEN */}
-      <div className="flex-1 flex gap-5 px-6 pb-4 min-h-0 pt-4">
+      {/* Two-column layout */}
+      <div className="flex-1 flex gap-5 px-6 pt-4 min-h-0 pb-2">
         {/* Left: video */}
         <motion.div
           initial={{ opacity: 0.4 }}
           animate={{ opacity: 1 }}
-          className="flex-1 min-w-0"
+          className="flex-1 min-w-0 min-h-0"
         >
           {mg
             ? <VideoPlayer videoUrl={mg.video_url} hasAudio={mg.has_audio} />
@@ -201,13 +195,13 @@ export function MinigameScreen() {
           }
         </motion.div>
 
-        {/* Right: info + end button */}
-        <div className="w-80 flex-shrink-0 flex flex-col gap-4">
-          <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 flex-1 flex flex-col overflow-hidden">
+        {/* Right: info card */}
+        <div className="w-80 flex-shrink-0 min-h-0">
+          <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 h-full flex flex-col overflow-hidden">
             {mg ? (
               <>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-display text-[#f59e0b] text-lg">
+                <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+                  <span className="font-display text-[#f59e0b] text-base">
                     {currentRound}<span className="text-[#d1d5db]">/{totalRounds}</span>
                   </span>
                   {darkRoundActive && (
@@ -216,14 +210,14 @@ export function MinigameScreen() {
                     </span>
                   )}
                 </div>
-                <h2 className="font-display text-2xl text-[#0f172a] mb-2 leading-tight">{mg.name}</h2>
+                <h2 className="font-display text-xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">{mg.name}</h2>
                 <div
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-body font-semibold mb-3 self-start"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-body font-semibold mb-3 self-start flex-shrink-0"
                   style={{ background: catStyle.bg, color: catStyle.text, borderColor: catStyle.border }}
                 >
                   🏷️ {mg.category ?? 'Allgemein'}
                 </div>
-                <p className="text-[#475569] font-body text-sm leading-relaxed flex-1 overflow-y-auto">
+                <p className="text-[#475569] font-body text-sm leading-relaxed flex-1 overflow-y-auto scrollbar-hide">
                   {mg.description}
                 </p>
               </>
@@ -233,11 +227,14 @@ export function MinigameScreen() {
               </div>
             )}
           </div>
-
-          <Button size="xl" variant="danger" onClick={endMinigame} fullWidth>
-            🏁 MINISPIEL BEENDEN
-          </Button>
         </div>
+      </div>
+
+      {/* Fixed footer — button always visible */}
+      <div className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex justify-center">
+        <Button size="xl" variant="danger" onClick={endMinigame} fullWidth>
+          🏁 MINISPIEL BEENDEN
+        </Button>
       </div>
     </div>
   )

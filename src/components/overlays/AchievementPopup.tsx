@@ -2,8 +2,6 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { ACHIEVEMENT_DEFS } from '../../lib/achievements'
-import { soundManager } from '../../lib/soundManager'
-
 const AUTO_DISMISS_MS = 4000
 
 export function AchievementDisplay() {
@@ -12,7 +10,6 @@ export function AchievementDisplay() {
 
   useEffect(() => {
     if (!current) return
-    soundManager.playSFX('achievement')
     const t = setTimeout(() => dismissAchievement(), AUTO_DISMISS_MS)
     return () => clearTimeout(t)
   }, [current?.achievementId, current?.teamId])

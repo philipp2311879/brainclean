@@ -5,7 +5,14 @@ import { Button } from '../ui/Button'
 import { CountingNumber } from '../ui/CountingNumber'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
-import { soundManager } from '../../lib/soundManager'
+import type { Team } from '../../types'
+
+const TITLE_PAUSE = 2000
+const PER_PLACE   = 2500
+const FIRST_EXTRA = 1500
+
+const PODIUM_COLORS = ['#eab308', '#94a3b8', '#f97316', '#64748b']
+const PODIUM_MEDALS = ['🥇', '🥈', '🥉', '🏅']
 
 function Confetti() {
   const pieces = Array.from({ length: 60 }, (_, i) => ({
@@ -13,18 +20,18 @@ function Confetti() {
     x: Math.random() * 100,
     color: ['#4f8cff', '#ffb830', '#f43f5e', '#34d399', '#8b5cf6'][i % 5],
     size: Math.random() * 10 + 4,
-    delay: Math.random() * 2,
-    duration: Math.random() * 3 + 2,
+    delay: Math.random() * 3,
+    duration: Math.random() * 3 + 3,
     rotate: Math.random() * 360,
   }))
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-30">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {pieces.map((p) => (
         <motion.div
           key={p.id}
           className="absolute rounded-sm"
           style={{ left: `${p.x}%`, top: -20, width: p.size, height: p.size, background: p.color }}
-          animate={{ y: window.innerHeight + 40, rotate: p.rotate + 720, opacity: [1, 1, 0] }}
+          animate={{ y: window.innerHeight + 40, rotate: p.rotate + 720, opacity: [0, 1, 1, 0] }}
           transition={{ duration: p.duration, delay: p.delay, ease: 'easeIn', repeat: Infinity }}
         />
       ))}
@@ -35,193 +42,227 @@ function Confetti() {
 interface RankGroup {
   rank: number
   crystals: number
-  teams: import('../../types').Team[]
+  teams: Team[]
 }
 
-const PODIUM_COLORS = ['#eab308', '#94a3b8', '#f97316', '#64748b']
-const PODIUM_MEDALS = ['🥇', '🥈', '🥉', '🏅']
-const PODIUM_HEIGHTS = ['h-44', 'h-32', 'h-24', 'h-16']
+function buildRankGroups(teams: Team[]): RankGroup[] {
+  const sorted = [...teams].sort((a, b) => b.crystals - a.crystals)
+  const groups: RankGroup[] = []
+  let rank = 1
+  let i = 0
+  while (i < sorted.length) {
+    const crystals = sorted[i].crystals
+    const group: Team[] = []
+    while (i < sorted.length && sorted[i].crystals === crystals) {
+      group.push(sorted[i])
+      i++
+    }
+    groups.push({ rank, crystals, teams: group })
+    rank += group.length
+  }
+  return groups
+}
+
+interface PodiumColumnProps {
+  group: RankGroup
+  gi: number      // 0 = 1st place, 1 = 2nd, etc.
+  visible: boolean
+}
+
+function PodiumColumn({ group, gi, visible }: PodiumColumnProps) {
+  const isFirst = gi === 0
+  const color = PODIUM_COLORS[Math.min(gi, 3)]
+
+  const avatarSizes = [120, 70, 60, 52]
+  const avatarSize = isFirst && group.teams.length > 1 ? 96 : avatarSizes[Math.min(gi, 3)]
+
+  const podiumH = [176, 128, 96, 64][Math.min(gi, 3)]
+  const podiumW = Math.max(
+    [144, 112, 96, 80][Math.min(gi, 3)],
+    group.teams.length > 1 ? group.teams.length * 96 : 0
+  )
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={isFirst ? { y: -80, opacity: 0, scale: 0.75 } : { y: 70, opacity: 0 }}
+          animate={isFirst ? { y: 0, opacity: 1, scale: 1 } : { y: 0, opacity: 1 }}
+          transition={{ duration: isFirst ? 1.1 : 0.85, ease: 'easeInOut' }}
+          className="flex flex-col items-center"
+        >
+          {/* Avatars */}
+          <div className="flex gap-1.5 justify-center mb-2">
+            {group.teams.map((t, idx) => (
+              <motion.div
+                key={t.id}
+                animate={{ y: [0, isFirst ? -10 : -5, 0] }}
+                transition={{ duration: isFirst ? 1.8 : 2.3, repeat: Infinity, delay: idx * 0.35 }}
+              >
+                <AvatarRingWrapper
+                  avatar={t.avatar}
+                  jerseyColor={t.jerseyColor}
+                  outerSize={avatarSize}
+                  style={{
+                    boxShadow: `0 ${isFirst ? 10 : 4}px ${isFirst ? 32 : 14}px ${resolveTeamColor(t.jerseyColor, t.avatar.color)}${isFirst ? '88' : '44'}`,
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Team name(s) */}
+          <div
+            className={`font-display text-center text-[#0f172a] leading-tight mb-0.5 ${isFirst ? 'text-xl' : 'text-sm'}`}
+          >
+            {group.teams.map((t) => t.name).join(' & ')}
+          </div>
+
+          {/* Crystals */}
+          <div className={`font-display text-[#f59e0b] mb-2 ${isFirst ? 'text-2xl' : 'text-sm'}`}>
+            {isFirst
+              ? <CountingNumber target={group.crystals} duration={1800} suffix=" 💎" />
+              : `${group.crystals} 💎`
+            }
+          </div>
+
+          {/* Podium bar */}
+          <motion.div
+            className="rounded-t-2xl flex items-end justify-center pb-3 border-2"
+            style={{
+              width: podiumW,
+              height: podiumH,
+              background: color + (isFirst ? '33' : '20'),
+              borderColor: color + (isFirst ? '99' : '55'),
+            }}
+            animate={isFirst ? {
+              boxShadow: [`0 0 0px ${color}00`, `0 0 28px ${color}66`, `0 0 0px ${color}00`],
+            } : {}}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <span className={`font-display ${isFirst ? 'text-4xl' : 'text-2xl'}`}>
+              {PODIUM_MEDALS[Math.min(gi, 3)]}
+            </span>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
 
 export function GameOverScreen() {
   const { teams, newGame } = useGameStore()
-  const [step, setStep] = useState(0)
+  const [revealedCount, setRevealedCount] = useState(0)
+  const [allDone, setAllDone] = useState(false)
 
-  // Build rank groups (ties share a rank)
-  const sortedTeams = [...teams].sort((a, b) => b.crystals - a.crystals)
-  const rankGroups: RankGroup[] = []
-  let rank = 1
-  let i = 0
-  while (i < sortedTeams.length) {
-    const crystals = sortedTeams[i].crystals
-    const group: typeof sortedTeams = []
-    while (i < sortedTeams.length && sortedTeams[i].crystals === crystals) {
-      group.push(sortedTeams[i])
-      i++
-    }
-    rankGroups.push({ rank, crystals, teams: group })
-    rank += group.length
-  }
-
+  const rankGroups = buildRankGroups(teams)
   const totalGroups = rankGroups.length
 
   useEffect(() => {
-    // Reveal groups in reverse order (worst first), 700ms apart
-    const timers = rankGroups.map((_, idx) =>
-      setTimeout(() => setStep(totalGroups - idx), (idx + 1) * 700),
+    const timers: ReturnType<typeof setTimeout>[] = []
+    for (let idx = 0; idx < totalGroups; idx++) {
+      timers.push(
+        setTimeout(() => setRevealedCount(idx + 1), TITLE_PAUSE + idx * PER_PLACE)
+      )
+    }
+    timers.push(
+      setTimeout(
+        () => setAllDone(true),
+        TITLE_PAUSE + (totalGroups - 1) * PER_PLACE + FIRST_EXTRA
+      )
     )
-    const winnerTimer = setTimeout(() => soundManager.playSFX('winner'), totalGroups * 700)
-    return () => { timers.forEach(clearTimeout); clearTimeout(winnerTimer) }
+    return () => timers.forEach(clearTimeout)
   }, [])
 
-  const allRevealed = step >= totalGroups
+  // gi=0 (1st) is visible last (revealedCount >= totalGroups)
+  // gi=totalGroups-1 (worst) is visible first (revealedCount >= 1)
+  const isRevealed = (gi: number) => revealedCount >= totalGroups - gi
 
-  // Podium order: rank2 left, rank1 center, rank3 right, rank4+ far right
-  // Build display order from rankGroups
-  const g0 = rankGroups[0]  // 1st place group
-  const g1 = rankGroups[1]  // 2nd place group
-  const g2 = rankGroups[2]  // 3rd place group
-  const g3 = rankGroups[3]  // 4th place group
-
-  const revealStep = (groupIdx: number) => step >= totalGroups - groupIdx
+  const g0 = rankGroups[0]
+  const g1 = rankGroups[1]
+  const g2 = rankGroups[2]
+  const g3 = rankGroups[3]
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-yellow-50 p-4 md:p-8 overflow-hidden relative">
-      {allRevealed && <Confetti />}
+    <div
+      className="w-full h-full flex flex-col pt-16 overflow-hidden relative"
+      style={{ background: 'linear-gradient(160deg, #f0f4ff 0%, #eef2ff 40%, #fefce8 100%)' }}
+    >
+      {allDone && <Confetti />}
 
       {/* Title */}
-      <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center mb-6 z-10">
-        <h1 className="font-display text-5xl md:text-6xl text-text-primary drop-shadow-sm">
-          🏆 SIEGEREHRUNG
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex-shrink-0 text-center py-5 px-4 z-10"
+      >
+        <h1 className="font-display text-5xl text-[#0f172a] drop-shadow-sm">
+          🏆 SIEGEREHRUNG 🏆
         </h1>
-        {g0 && allRevealed && (
-          <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="text-text-secondary font-body text-xl mt-2">
-            {g0.teams.length > 1 ? 'Geteilter 1. Platz: ' : 'Glückwunsch, '}
-            {g0.teams.map((t, idx) => (
-              <span key={t.id}>
-                {idx > 0 && ' & '}
-                <span className="font-display" style={{ color: resolveTeamColor(t.jerseyColor, t.avatar.color) }}>
-                  {t.name}
+        <AnimatePresence mode="wait">
+          {allDone && g0 ? (
+            <motion.p
+              key="winner"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="font-body text-xl text-[#475569] mt-1"
+            >
+              {g0.teams.length > 1 ? 'Geteilter 1. Platz: ' : 'Glückwunsch, '}
+              {g0.teams.map((t, idx) => (
+                <span key={t.id}>
+                  {idx > 0 && ' & '}
+                  <span className="font-display" style={{ color: resolveTeamColor(t.jerseyColor, t.avatar.color) }}>
+                    {t.name}
+                  </span>
                 </span>
-              </span>
-            ))}
-            !
-          </motion.p>
-        )}
+              ))}!
+            </motion.p>
+          ) : revealedCount > 0 ? (
+            <motion.div
+              key="dots"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex justify-center gap-1.5 mt-3"
+            >
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-2.5 h-2.5 rounded-full bg-[#4f8cff]"
+                  animate={{ opacity: [0.25, 1, 0.25] }}
+                  transition={{ duration: 0.9, delay: i * 0.28, repeat: Infinity }}
+                />
+              ))}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </motion.div>
 
-      {/* Podium */}
-      <div className="flex items-end gap-3 mb-8 z-10 flex-wrap justify-center">
+      {/* Podium — display order: 2nd | 1st | 3rd | 4th */}
+      <div className="flex-1 flex items-end justify-center gap-4 px-6 pb-4 z-10">
+        {g1 && <PodiumColumn group={g1} gi={1} visible={isRevealed(1)} />}
+        {g0 && <PodiumColumn group={g0} gi={0} visible={isRevealed(0)} />}
+        {g2 && <PodiumColumn group={g2} gi={2} visible={isRevealed(2)} />}
+        {g3 && <PodiumColumn group={g3} gi={3} visible={isRevealed(3)} />}
+      </div>
 
-        {/* 2nd place group */}
+      {/* Fixed footer */}
+      <div
+        className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex justify-center z-10"
+        style={{ minHeight: 80 }}
+      >
         <AnimatePresence>
-          {g1 && revealStep(1) && (
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col items-center gap-2">
-              <div className="flex gap-1 justify-center">
-                {g1.teams.map((t) => (
-                  <motion.div key={t.id} animate={{ y: [0, -5, 0] }} transition={{ duration: 2.2, repeat: Infinity, delay: 0.4 }}>
-                    <AvatarRingWrapper avatar={t.avatar} jerseyColor={t.jerseyColor} outerSize={70}
-                      style={{ boxShadow: `0 6px 18px ${resolveTeamColor(t.jerseyColor, t.avatar.color)}55` }} />
-                  </motion.div>
-                ))}
-              </div>
-              <div className="font-display text-text-primary text-sm text-center">
-                {g1.teams.map((t) => t.name).join(' & ')}
-              </div>
-              <div className="font-display text-accent-gold text-base">{g1.crystals} 💎</div>
-              <div
-                className={`${g1.teams.length > 1 ? 'w-44' : 'w-28'} ${PODIUM_HEIGHTS[1]} rounded-t-2xl flex items-end justify-center pb-3 border-2`}
-                style={{ background: PODIUM_COLORS[1] + '22', borderColor: PODIUM_COLORS[1] + '66' }}
-              >
-                <span className="font-display text-3xl">{PODIUM_MEDALS[1]}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 1st place group */}
-        <AnimatePresence>
-          {g0 && revealStep(0) && (
-            <motion.div initial={{ y: -60, opacity: 0, scale: 0.7 }} animate={{ y: 0, opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 14 }} className="flex flex-col items-center gap-2">
-              <div className="flex gap-2 justify-center">
-                {g0.teams.map((t) => (
-                  <motion.div key={t.id} animate={{ y: [0, -10, 0] }} transition={{ duration: 1.8, repeat: Infinity }}>
-                    <AvatarRingWrapper avatar={t.avatar} jerseyColor={t.jerseyColor} outerSize={g0.teams.length > 1 ? 96 : 120}
-                      style={{ boxShadow: `0 10px 36px ${resolveTeamColor(t.jerseyColor, t.avatar.color)}88` }} />
-                  </motion.div>
-                ))}
-              </div>
-              <div className="font-display text-text-primary text-lg text-center">
-                {g0.teams.map((t) => t.name).join(' & ')}
-              </div>
-              <div className="font-display text-2xl text-accent-gold">
-                <CountingNumber target={g0.crystals} duration={2000} suffix=" 💎" />
-              </div>
-              <div
-                className={`${g0.teams.length > 1 ? 'w-52' : 'w-36'} ${PODIUM_HEIGHTS[0]} rounded-t-2xl flex items-end justify-center pb-3 border-2`}
-                style={{ background: PODIUM_COLORS[0] + '33', borderColor: PODIUM_COLORS[0] + '88' }}
-              >
-                <span className="font-display text-4xl">{PODIUM_MEDALS[0]}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 3rd place group */}
-        <AnimatePresence>
-          {g2 && revealStep(2) && (
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col items-center gap-2">
-              <div className="flex gap-1 justify-center">
-                {g2.teams.map((t) => (
-                  <motion.div key={t.id} animate={{ y: [0, -4, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.7 }}>
-                    <AvatarRingWrapper avatar={t.avatar} jerseyColor={t.jerseyColor} outerSize={60}
-                      style={{ boxShadow: `0 4px 14px ${resolveTeamColor(t.jerseyColor, t.avatar.color)}44` }} />
-                  </motion.div>
-                ))}
-              </div>
-              <div className="font-display text-text-primary text-sm text-center">
-                {g2.teams.map((t) => t.name).join(' & ')}
-              </div>
-              <div className="font-display text-accent-gold text-sm">{g2.crystals} 💎</div>
-              <div
-                className={`${g2.teams.length > 1 ? 'w-36' : 'w-24'} ${PODIUM_HEIGHTS[2]} rounded-t-2xl flex items-end justify-center pb-3 border-2`}
-                style={{ background: PODIUM_COLORS[2] + '22', borderColor: PODIUM_COLORS[2] + '66' }}
-              >
-                <span className="font-display text-2xl">{PODIUM_MEDALS[2]}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 4th place group */}
-        <AnimatePresence>
-          {g3 && revealStep(3) && (
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col items-center gap-2">
-              <div className="flex gap-1 justify-center">
-                {g3.teams.map((t) => (
-                  <AvatarRingWrapper key={t.id} avatar={t.avatar} jerseyColor={t.jerseyColor} outerSize={52} />
-                ))}
-              </div>
-              <div className="font-display text-text-secondary text-xs text-center">
-                {g3.teams.map((t) => t.name).join(' & ')}
-              </div>
-              <div className="font-display text-text-secondary text-xs">{g3.crystals} 💎</div>
-              <div
-                className={`${g3.teams.length > 1 ? 'w-32' : 'w-20'} ${PODIUM_HEIGHTS[3]} rounded-t-2xl flex items-end justify-center pb-2 border-2`}
-                style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}
-              >
-                <span className="font-display text-xl">{PODIUM_MEDALS[3]}</span>
-              </div>
+          {allDone && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', damping: 20 }}
+            >
+              <Button size="xl" onClick={newGame}>🔄 NEUES SPIEL</Button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      {allRevealed && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="z-10">
-          <Button size="xl" onClick={newGame}>🔄 NEUES SPIEL</Button>
-        </motion.div>
-      )}
     </div>
   )
 }
