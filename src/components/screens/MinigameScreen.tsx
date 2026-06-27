@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
 import { useMinigameStore } from '../../store/minigameStore'
@@ -20,6 +20,8 @@ function categoryStyle(cat: string | null) {
 function toEmbedUrl(url: string | null): string | null {
   if (!url) return null
   if (url.includes('youtube.com/embed/')) return url
+  const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&]+)/)
+  if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`
   const shortMatch = url.match(/youtu\.be\/([^?&]+)/)
   if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`
   const watchMatch = url.match(/[?&]v=([^&]+)/)
@@ -27,10 +29,46 @@ function toEmbedUrl(url: string | null): string | null {
   return url
 }
 
+function isPortraitVideo(url: string | null): boolean {
+  return !!(url && url.includes('/shorts/'))
+}
+
+// Fills available space with text, auto-shrinks font from 40px down to 16px
+function FitDescription({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const fit = () => {
+      const el = ref.current
+      if (!el) return
+      el.style.fontSize = '40px'
+      while (el.scrollHeight > el.clientHeight && parseFloat(el.style.fontSize) > 16) {
+        el.style.fontSize = `${parseFloat(el.style.fontSize) - 1}px`
+      }
+    }
+
+    const t = setTimeout(fit, 20)
+    const obs = new ResizeObserver(fit)
+    if (ref.current) obs.observe(ref.current)
+    return () => { clearTimeout(t); obs.disconnect() }
+  }, [text])
+
+  return (
+    <div
+      ref={ref}
+      className="flex-1 overflow-hidden text-[#475569] font-body"
+      style={{ fontSize: 40, lineHeight: 1.4 }}
+    >
+      {text}
+    </div>
+  )
+}
+
 function VideoPlayer({ videoUrl, hasAudio }: { videoUrl: string | null; hasAudio: boolean }) {
   const [muted, setMuted] = useState(!hasAudio)
   const [videoKey, setVideoKey] = useState(0)
   const embedUrl = toEmbedUrl(videoUrl)
+  const portrait = isPortraitVideo(videoUrl)
 
   const replay = () => setVideoKey((k) => k + 1)
   const toggleMute = () => { setMuted((m) => !m); setVideoKey((k) => k + 1) }
@@ -46,18 +84,27 @@ function VideoPlayer({ videoUrl, hasAudio }: { videoUrl: string | null; hasAudio
 
   const src = `${embedUrl}?autoplay=1&mute=${muted ? 1 : 0}&rel=0&start=0`
 
+  // Landscape (16:9): fill width, height follows. Portrait (9:16): fill height, width follows.
+  // max-height/max-width ensure it never overflows the container.
+  const iframeStyle: React.CSSProperties = portrait
+    ? { height: '100%', aspectRatio: '9/16', maxWidth: '100%', borderRadius: 12 }
+    : { width: '100%', aspectRatio: '16/9', maxHeight: '100%', borderRadius: 12 }
+
   return (
-    <div className="flex flex-col gap-2 h-full">
-      <div className="relative rounded-2xl overflow-hidden border-2 border-[#e5e7eb] bg-black flex-1 min-h-0">
+    <div className="flex flex-col gap-2 h-full min-h-0">
+      {/* Video area: light background, no black bars around the iframe */}
+      <div className="flex-1 min-h-0 rounded-2xl border-2 border-[#e5e7eb] bg-[#f0f4ff] flex items-center justify-center overflow-hidden">
         <iframe
           key={videoKey}
           src={src}
-          className="w-full h-full"
+          style={iframeStyle}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           title="Minispiel-Video"
         />
       </div>
+
+      {/* Controls */}
       <div className="flex gap-2 flex-shrink-0">
         <button
           onClick={replay}
@@ -92,7 +139,7 @@ export function MinigameScreen() {
   if (phase === 'minigameAnnounce') {
     return (
       <div className="w-full h-full flex flex-col screen-base pt-16 overflow-hidden">
-        {/* Round banner — fixed height */}
+        {/* Round banner */}
         <div className="flex-shrink-0 text-center py-3 px-6">
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
@@ -115,14 +162,14 @@ export function MinigameScreen() {
           )}
         </div>
 
-        {/* Two-column layout — takes remaining space */}
+        {/* Two-column layout: video 2/3, info 1/3 */}
         <div className="flex-1 flex gap-5 px-6 min-h-0 pb-2">
-          {/* Left: video */}
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="flex-1 min-w-0 min-h-0"
+            className="min-w-0 min-h-0"
+            style={{ flex: 2 }}
           >
             {mg
               ? <VideoPlayer videoUrl={mg.video_url} hasAudio={mg.has_audio} />
@@ -134,26 +181,26 @@ export function MinigameScreen() {
             }
           </motion.div>
 
-          {/* Right: info card */}
           <motion.div
             initial={{ x: 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-80 flex-shrink-0 min-h-0"
+            className="min-h-0"
+            style={{ flex: 1 }}
           >
             <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 h-full flex flex-col overflow-hidden">
               {mg ? (
                 <>
-                  <h2 className="font-display text-2xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">{mg.name}</h2>
+                  <h2 className="font-display text-3xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">
+                    {mg.name}
+                  </h2>
                   <div
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-body font-semibold mb-3 self-start flex-shrink-0"
                     style={{ background: catStyle.bg, color: catStyle.text, borderColor: catStyle.border }}
                   >
                     🏷️ {mg.category ?? 'Allgemein'}
                   </div>
-                  <p className="text-[#475569] font-body text-sm leading-relaxed flex-1 overflow-y-auto scrollbar-hide">
-                    {mg.description}
-                  </p>
+                  <FitDescription text={mg.description ?? ''} />
                 </>
               ) : (
                 <div className="flex items-center justify-center flex-1">
@@ -164,7 +211,7 @@ export function MinigameScreen() {
           </motion.div>
         </div>
 
-        {/* Fixed footer — button always visible */}
+        {/* Fixed footer */}
         <div className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex justify-center">
           <Button size="xl" onClick={startMinigame} fullWidth>
             ⚡ MINISPIEL STARTEN!
@@ -177,13 +224,12 @@ export function MinigameScreen() {
   // ── Active screen ─────────────────────────────────────────────────────────
   return (
     <div className="w-full h-full flex flex-col screen-base pt-16 overflow-hidden">
-      {/* Two-column layout */}
       <div className="flex-1 flex gap-5 px-6 pt-4 min-h-0 pb-2">
-        {/* Left: video */}
         <motion.div
           initial={{ opacity: 0.4 }}
           animate={{ opacity: 1 }}
-          className="flex-1 min-w-0 min-h-0"
+          className="min-w-0 min-h-0"
+          style={{ flex: 2 }}
         >
           {mg
             ? <VideoPlayer videoUrl={mg.video_url} hasAudio={mg.has_audio} />
@@ -195,8 +241,7 @@ export function MinigameScreen() {
           }
         </motion.div>
 
-        {/* Right: info card */}
-        <div className="w-80 flex-shrink-0 min-h-0">
+        <div className="min-h-0" style={{ flex: 1 }}>
           <div className="bg-white rounded-2xl border-2 border-[#e5e7eb] p-5 h-full flex flex-col overflow-hidden">
             {mg ? (
               <>
@@ -210,16 +255,16 @@ export function MinigameScreen() {
                     </span>
                   )}
                 </div>
-                <h2 className="font-display text-xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">{mg.name}</h2>
+                <h2 className="font-display text-2xl text-[#0f172a] mb-2 leading-tight flex-shrink-0">
+                  {mg.name}
+                </h2>
                 <div
                   className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-body font-semibold mb-3 self-start flex-shrink-0"
                   style={{ background: catStyle.bg, color: catStyle.text, borderColor: catStyle.border }}
                 >
                   🏷️ {mg.category ?? 'Allgemein'}
                 </div>
-                <p className="text-[#475569] font-body text-sm leading-relaxed flex-1 overflow-y-auto scrollbar-hide">
-                  {mg.description}
-                </p>
+                <FitDescription text={mg.description ?? ''} />
               </>
             ) : (
               <div className="flex items-center justify-center flex-1">
@@ -230,7 +275,7 @@ export function MinigameScreen() {
         </div>
       </div>
 
-      {/* Fixed footer — button always visible */}
+      {/* Fixed footer */}
       <div className="flex-shrink-0 bg-white border-t border-[#e5e7eb] p-4 flex justify-center">
         <Button size="xl" variant="danger" onClick={endMinigame} fullWidth>
           🏁 MINISPIEL BEENDEN
