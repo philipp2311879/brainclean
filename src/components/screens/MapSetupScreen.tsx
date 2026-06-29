@@ -5,7 +5,28 @@ import { useMinigameStore } from '../../store/minigameStore'
 import { GameBoard } from '../board/GameBoard'
 import { Button } from '../ui/Button'
 import { generateMap, normalCount, DEFAULT_CONFIG, type MapConfig } from '../../utils/mapGenerator'
-import type { Field } from '../../types'
+import type { Field, Minigame } from '../../types'
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function buildMinigameQueue(selected: Minigame[], totalRounds: number): Minigame[] {
+  if (selected.length === 0) return []
+  const queue: Minigame[] = []
+  while (queue.length < totalRounds) {
+    const bag = shuffleArray(selected)
+    for (const mg of bag) {
+      if (queue.length < totalRounds) queue.push(mg)
+    }
+  }
+  return queue
+}
 
 const FIELD_TOTAL = 30
 const MIN_NORMAL   = 8
@@ -277,7 +298,10 @@ export function MapSetupScreen() {
               size="lg"
               fullWidth
               disabled={!canStart}
-              onClick={() => startGameFromMapSetup(fields)}
+              onClick={() => {
+                const selected = minigames.filter((m) => selectedIds.includes(m.id))
+                startGameFromMapSetup(fields, buildMinigameQueue(selected, totalRounds))
+              }}
             >
               ▶️ SPIEL STARTEN!
             </Button>

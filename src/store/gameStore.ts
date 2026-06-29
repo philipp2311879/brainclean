@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type {
   GameState, Team, Field, Mine, EventData, Item,
-  FieldEffectPending, CollisionPending,
+  FieldEffectPending, CollisionPending, Minigame,
 } from '../types'
 import { AVATARS } from '../data/avatars'
 import { generateMap, FIELD_TOTAL } from '../utils/mapGenerator'
@@ -46,6 +46,7 @@ const initialState: GameState = {
   phase: 'title',
   totalRounds: 5,
   currentRound: 0,
+  minigameQueue: [],
   numTeams: 4,
   teams: [],
   fields: [],
@@ -128,7 +129,7 @@ interface GameStore extends GameState {
   setJerseyColor: (color: string) => void
   confirmTeam: () => void
   startGame: () => void
-  startGameFromMapSetup: (fields: import('../types').Field[]) => void
+  startGameFromMapSetup: (fields: import('../types').Field[], minigameQueue: Minigame[]) => void
   startMinigame: () => void
   endMinigame: () => void
   setPlacement: (teamId: string, placement: number) => void
@@ -205,8 +206,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  startGameFromMapSetup: (fields) => {
-    set({ fields, currentRound: 1, phase: 'minigameAnnounce' })
+  startGameFromMapSetup: (fields, minigameQueue) => {
+    set({ fields, minigameQueue, currentRound: 1, phase: 'minigameAnnounce' })
   },
 
   startGame: () => {

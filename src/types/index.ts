@@ -138,6 +138,7 @@ export interface GameState {
   phase: GamePhase
   totalRounds: number
   currentRound: number
+  minigameQueue: Minigame[]
   numTeams: number
   teams: Team[]
   fields: Field[]

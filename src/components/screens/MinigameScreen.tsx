@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore'
-import { useMinigameStore } from '../../store/minigameStore'
 import { Button } from '../ui/Button'
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -125,14 +124,10 @@ function VideoPlayer({ videoUrl, hasAudio }: { videoUrl: string | null; hasAudio
 }
 
 export function MinigameScreen() {
-  const { phase, startMinigame, endMinigame, currentRound, totalRounds, darkRoundActive } = useGameStore()
-  const { currentMinigame, pickNext } = useMinigameStore()
+  const { phase, startMinigame, endMinigame, currentRound, totalRounds, darkRoundActive, minigameQueue } = useGameStore()
 
-  useEffect(() => {
-    if (phase === 'minigameAnnounce') pickNext()
-  }, [])
-
-  const mg = currentMinigame
+  const mg = minigameQueue[currentRound - 1] ?? null
+  console.log('Runde', currentRound, 'Minispiel:', mg?.name)
   const catStyle = categoryStyle(mg?.category ?? null)
 
   // ── Announce screen ───────────────────────────────────────────────────────
