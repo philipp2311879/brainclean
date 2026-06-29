@@ -123,6 +123,7 @@ export default function App() {
   return (
     <DatabaseBootstrap>
     <div className="w-screen h-screen overflow-hidden relative">
+      <div className="fixed top-1 left-2 z-50 text-[10px] text-[#94a3b8] font-body select-none pointer-events-none">v1.0</div>
       <HeaderBar />
       <AnimatePresence mode="wait">
         <motion.div
