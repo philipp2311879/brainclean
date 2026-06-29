@@ -115,7 +115,14 @@ export type EventEffect =
   | { type: 'dark_round' }
   | { type: 'gifts' }
   | { type: 'jackpot_field' }
-  | { type: 'bounty' }
+  | { type: 'lucky_wheel' }
+  | { type: 'gold_rush' }
+  | { type: 'swap_chaos' }
+
+export type EventPayload =
+  | { type: 'lucky_wheel'; teamId: string }
+  | { type: 'gold_rush'; teamId: string }
+  | { type: 'swap_chaos'; teamAId: string; teamBId: string }
 
 export interface CollisionPending {
   attackerTeamId: string
@@ -147,10 +154,10 @@ export interface GameState {
   jackpotFieldIndex: number | null
   darkRoundActive: boolean
   nextRoundDark: boolean
-  bountyTargetTeamId: string | null
+  eventPayload: EventPayload | null
   currentTeamSetupIndex: number
   diceResults: Record<string, number>
-  dicePairs: Record<string, [number, number]>
+  dicePairs: Record<string, number[]>
   crystalAwards: Record<string, number>
   walkingTeamOrder: string[]
   walkingTeamIndex: number

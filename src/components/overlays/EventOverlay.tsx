@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../ui/Button'
 import { useGameStore } from '../../store/gameStore'
-import type { EventData, Team } from '../../types'
+import type { EventData, Team, EventPayload } from '../../types'
 import { AvatarRingWrapper } from '../ui/AvatarDisplay'
 import { resolveTeamColor } from '../../data/avatars'
 function EvtAvatar({ team, size = 48 }: { team: Team; size?: number }) {
@@ -180,28 +180,90 @@ function JackpotAnim({ jackpotFieldIndex }: { jackpotFieldIndex: number | null }
   )
 }
 
-function BountyAnim({ teams, bountyTargetTeamId }: { teams: Team[]; bountyTargetTeamId: string | null }) {
-  const target = teams.find((t) => t.id === bountyTargetTeamId)
-  if (!target) return null
+function LuckyWheelAnim({ teams, payload }: { teams: Team[]; payload: EventPayload | null }) {
+  const winner = payload?.type === 'lucky_wheel' ? teams.find((t) => t.id === payload.teamId) : null
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.6 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', damping: 14, delay: 0.3 }}
-      className="mb-4 px-6 py-3 rounded-2xl border-2 border-[#ef4444] bg-[#fee2e2] text-center"
-    >
+    <div className="flex flex-col items-center mb-4">
       <motion.div
-        animate={{ scale: [1, 1.12, 1] }}
-        transition={{ duration: 0.7, repeat: Infinity }}
-        className="mb-1 flex justify-center"
+        animate={{ rotate: [0, 360, 720, 1080] }}
+        transition={{ duration: 2, ease: 'easeOut' }}
+        className="text-6xl mb-3"
       >
-        <EvtAvatar team={target} size={52} />
+        🎡
       </motion.div>
-      <div className="font-display text-2xl text-[#ef4444]">{target.name}</div>
-      <div className="font-body text-[#b91c1c] text-sm mt-1">
-        Wer dieses Team beim Minispiel schlägt, erhält +150 💎!
-      </div>
-    </motion.div>
+      {winner && (
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 12, delay: 0.5 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border-2"
+          style={{ borderColor: '#10b981', background: '#f0fdf4' }}
+        >
+          <EvtAvatar team={winner} size={32} />
+          <span className="font-display text-xl text-[#10b981]">{winner.name} +50 💎</span>
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
+function GoldRushAnim({ teams, payload }: { teams: Team[]; payload: EventPayload | null }) {
+  const winner = payload?.type === 'gold_rush' ? teams.find((t) => t.id === payload.teamId) : null
+  return (
+    <div className="flex flex-col items-center mb-4">
+      <motion.div
+        animate={{ y: [0, -12, 0], scale: [1, 1.15, 1] }}
+        transition={{ duration: 0.7, repeat: 3 }}
+        className="text-6xl mb-3"
+      >
+        💰
+      </motion.div>
+      {winner && (
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 12, delay: 0.4 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border-2"
+          style={{ borderColor: '#d97706', background: '#fef9c3' }}
+        >
+          <EvtAvatar team={winner} size={32} />
+          <span className="font-display text-xl text-[#d97706]">{winner.name} +60 💎</span>
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
+function SwapChaosAnim({ teams, payload }: { teams: Team[]; payload: EventPayload | null }) {
+  const teamA = payload?.type === 'swap_chaos' ? teams.find((t) => t.id === payload.teamAId) : null
+  const teamB = payload?.type === 'swap_chaos' ? teams.find((t) => t.id === payload.teamBId) : null
+  if (!teamA || !teamB) return null
+  return (
+    <div className="flex items-center justify-center gap-6 mb-4">
+      <motion.div
+        animate={{ x: [0, 48, 0] }}
+        transition={{ duration: 1.4, repeat: 1, ease: 'easeInOut' }}
+        className="flex flex-col items-center gap-1"
+      >
+        <EvtAvatar team={teamA} size={52} />
+        <span className="font-display text-xs text-[#475569]">{teamA.name}</span>
+      </motion.div>
+      <motion.div
+        animate={{ scale: [1, 1.4, 1] }}
+        transition={{ duration: 0.4, repeat: 4 }}
+        className="text-3xl"
+      >
+        ⇌
+      </motion.div>
+      <motion.div
+        animate={{ x: [0, -48, 0] }}
+        transition={{ duration: 1.4, repeat: 1, ease: 'easeInOut' }}
+        className="flex flex-col items-center gap-1"
+      >
+        <EvtAvatar team={teamB} size={52} />
+        <span className="font-display text-xs text-[#475569]">{teamB.name}</span>
+      </motion.div>
+    </div>
   )
 }
 
@@ -226,7 +288,7 @@ function DarkRoundAnim() {
 const AUTO_CONFIRM_DELAY = 3000
 
 export function EventOverlay({ event, onConfirm }: EventOverlayProps) {
-  const { teams, jackpotFieldIndex, bountyTargetTeamId } = useGameStore()
+  const { teams, jackpotFieldIndex, eventPayload } = useGameStore()
   const [canConfirm, setCanConfirm] = useState(false)
 
   useEffect(() => {
@@ -273,8 +335,10 @@ export function EventOverlay({ event, onConfirm }: EventOverlayProps) {
           {event.id === 'earthquake'    && <EarthquakeAnim teams={teams} />}
           {event.id === 'tax'           && <TaxAnim teams={teams} />}
           {event.id === 'jackpot_field' && <JackpotAnim jackpotFieldIndex={jackpotFieldIndex} />}
-          {event.id === 'bounty'        && <BountyAnim teams={teams} bountyTargetTeamId={bountyTargetTeamId} />}
           {event.id === 'dark_round'    && <DarkRoundAnim />}
+          {event.id === 'lucky_wheel'   && <LuckyWheelAnim teams={teams} payload={eventPayload} />}
+          {event.id === 'gold_rush'     && <GoldRushAnim teams={teams} payload={eventPayload} />}
+          {event.id === 'swap_chaos'    && <SwapChaosAnim teams={teams} payload={eventPayload} />}
 
           <p className="text-[#475569] font-body text-xl leading-relaxed mb-6">
             {event.description}

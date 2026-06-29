@@ -118,7 +118,7 @@ function CrystalCounter({ team }: { team: Team }) {
 // ── Header bar ───────────────────────────────────────────────────────────────
 export function HeaderBar() {
   const {
-    teams, currentRound, totalRounds, phase,
+    teams, currentRound, totalRounds, phase, nextRoundDark,
     goBackToPreviousDecision, showInfoOverlay, setShowInfoOverlay, abortGame,
   } = useGameStore()
 
@@ -157,6 +157,11 @@ export function HeaderBar() {
             <span className="text-[#4f8cff]">{currentRound}</span>
             <span className="text-[#d1d5db]">/{totalRounds}</span>
           </div>
+          {nextRoundDark && (
+            <div className="px-2 py-0.5 rounded-full bg-purple-100 border border-purple-400 text-purple-700 font-body text-xs whitespace-nowrap">
+              🌑 Nächste: Dunkle Runde
+            </div>
+          )}
         </div>
 
         {/* Center: logo */}

@@ -37,7 +37,7 @@ function SingleDie({ value, rolling, color }: { value: number; rolling: boolean;
 }
 
 export function RollingScreen() {
-  const { teams, diceResults, dicePairs, rollDice, finishRolling } = useGameStore()
+  const { teams, diceResults, dicePairs, darkRoundActive, rollDice, finishRolling } = useGameStore()
   const [rolling, setRolling] = useState(false)
   const [revealed, setRevealed] = useState(false)
 
@@ -59,6 +59,11 @@ export function RollingScreen() {
           🎲 <span className="text-accent-blue">WÜRFELN</span>
         </h1>
         <p className="text-text-secondary text-lg font-body">Alle Teams würfeln gleichzeitig</p>
+        {darkRoundActive && (
+          <div className="inline-block mt-1 px-4 py-1 rounded-full bg-purple-100 border-2 border-purple-400 text-purple-700 font-display text-sm">
+            🌑 DUNKLE RUNDE: Sieger würfelt 2×!
+          </div>
+        )}
       </motion.div>
 
       {/* Dice cards — centered in remaining space */}
@@ -81,10 +86,25 @@ export function RollingScreen() {
                     style={{ boxShadow: `0 4px 12px ${tColor}44` }} />
                   <div className="font-display text-text-primary text-base leading-tight text-center">{team.name}</div>
 
-                  {/* Two dice */}
+                  {/* Dice */}
                   {team.anchoredThisRound ? (
                     <div className="flex items-center gap-1.5">
                       <span className="text-4xl">⚓</span>
+                    </div>
+                  ) : pair.length === 4 ? (
+                    // Dark round winner: 2×2 dice
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        <SingleDie value={pair[0]} rolling={rolling} color={tColor} />
+                        <span className="font-display text-[#94a3b8] text-xs">+</span>
+                        <SingleDie value={pair[1]} rolling={rolling} color={tColor} />
+                      </div>
+                      <span className="font-display text-[#8b5cf6] text-xs">🌑 +</span>
+                      <div className="flex items-center gap-1">
+                        <SingleDie value={pair[2]} rolling={rolling} color={tColor} />
+                        <span className="font-display text-[#94a3b8] text-xs">+</span>
+                        <SingleDie value={pair[3]} rolling={rolling} color={tColor} />
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -111,6 +131,7 @@ export function RollingScreen() {
                             <span className="text-text-secondary text-sm ml-1">
                               Schritt{total !== 1 ? 'e' : ''}
                             </span>
+                            {pair.length === 4 && <div className="text-sm text-[#8b5cf6]">🌑 2× Wurf</div>}
                             {team.turboThisRound && <div className="text-sm">🚀 Turbo!</div>}
                             {team.doubleStepThisRound && <div className="text-sm">👟 ×2</div>}
                           </>
