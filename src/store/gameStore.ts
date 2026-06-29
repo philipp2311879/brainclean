@@ -47,6 +47,7 @@ const initialState: GameState = {
   totalRounds: 5,
   currentRound: 0,
   minigameQueue: [],
+  itemsEnabled: true,
   numTeams: 4,
   teams: [],
   fields: [],
@@ -129,7 +130,7 @@ interface GameStore extends GameState {
   setJerseyColor: (color: string) => void
   confirmTeam: () => void
   startGame: () => void
-  startGameFromMapSetup: (fields: import('../types').Field[], minigameQueue: Minigame[]) => void
+  startGameFromMapSetup: (fields: import('../types').Field[], minigameQueue: Minigame[], itemsEnabled: boolean) => void
   startMinigame: () => void
   endMinigame: () => void
   setPlacement: (teamId: string, placement: number) => void
@@ -206,8 +207,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  startGameFromMapSetup: (fields, minigameQueue) => {
-    set({ fields, minigameQueue, currentRound: 1, phase: 'minigameAnnounce' })
+  startGameFromMapSetup: (fields, minigameQueue, itemsEnabled) => {
+    set({ fields, minigameQueue, itemsEnabled, currentRound: 1, phase: 'minigameAnnounce' })
   },
 
   startGame: () => {
@@ -237,7 +238,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   confirmPlacements: () => {
     const {
       teams, darkRoundActive, nextRoundDark, bountyTargetTeamId,
-      finaleActive, currentRound,
+      finaleActive, currentRound, itemsEnabled,
       achievementProgress: prog, unlockedAchievements, achievementQueue,
     } = get()
 
@@ -306,7 +307,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Unique first place → streak counts
           const newStreak = t.consecutiveFirstPlace + 1
           newProg.firstPlaceCount[t.id] = (newProg.firstPlaceCount[t.id] ?? 0) + 1
-          if (newStreak >= 2) {
+          if (newStreak >= 2 && itemsEnabled) {
             streakShopTeamId = t.id
             if (newStreak >= 3) awards[t.id] = (awards[t.id] ?? 0) + 50
           }
@@ -343,7 +344,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   finishCrystalAward: () => {
-    const { teams, crystalAwards, currentRound, achievementProgress: prog, unlockedAchievements, achievementQueue } = get()
+    const { teams, crystalAwards, currentRound, itemsEnabled, achievementProgress: prog, unlockedAchievements, achievementQueue } = get()
     const updated = teams.map((t) => ({
       ...t,
       crystals: Math.max(0, t.crystals + (crystalAwards[t.id] ?? 0)),
@@ -368,7 +369,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       achievementQueue: newQueue,
       itemPhaseOrder,
       itemPhaseTeamIndex: 0,
-      phase: hasUsableItems ? 'itemPhase' : 'rolling',
+      phase: (hasUsableItems && itemsEnabled) ? 'itemPhase' : 'rolling',
     })
   },
 

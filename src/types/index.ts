@@ -139,6 +139,7 @@ export interface GameState {
   totalRounds: number
   currentRound: number
   minigameQueue: Minigame[]
+  itemsEnabled: boolean
   numTeams: number
   teams: Team[]
   fields: Field[]

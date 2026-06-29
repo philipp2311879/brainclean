@@ -179,7 +179,12 @@ export function MapSetupScreen() {
                 <FieldRow label="Bonus-Felder"  emoji="💎" color="#3b82f6" value={cfg.bonus} min={1} max={maxFor('bonus')} onChange={(v) => set('bonus', v)} />
                 <FieldRow label="Fallen-Felder" emoji="💀" color="#ef4444" value={cfg.trap}  min={1} max={maxFor('trap')}  onChange={(v) => set('trap',  v)} />
                 <FieldRow label="Event-Felder"  emoji="⚡" color="#8b5cf6" value={cfg.event} min={1} max={maxFor('event')} onChange={(v) => set('event', v)} />
-                <FieldRow label="Shop-Felder"   emoji="🏪" color="#f97316" value={cfg.shop}  min={1} max={Math.min(3, maxFor('shop'))} onChange={(v) => set('shop',  v)} />
+                <FieldRow label="Shop-Felder"   emoji="🏪" color="#f97316" value={cfg.shop}  min={0} max={Math.min(3, maxFor('shop'))} onChange={(v) => set('shop',  v)} />
+                {cfg.shop === 0 && (
+                  <div className="px-3 py-2 rounded-xl bg-[#f0f9ff] border border-[#bae6fd] text-[#0369a1] font-body text-xs leading-relaxed">
+                    ℹ️ Ohne Shop sind alle Items deaktiviert – reines Lauf- und Glücksspiel ohne Item-Strategie.
+                  </div>
+                )}
               </div>
 
               <div className={`mt-4 p-3 rounded-2xl border-2 flex items-center gap-3 ${isValid ? 'bg-[#f0fdf4] border-[#10b981]' : 'bg-[#fff1f2] border-[#ef4444]'}`}>
@@ -300,7 +305,7 @@ export function MapSetupScreen() {
               disabled={!canStart}
               onClick={() => {
                 const selected = minigames.filter((m) => selectedIds.includes(m.id))
-                startGameFromMapSetup(fields, buildMinigameQueue(selected, totalRounds))
+                startGameFromMapSetup(fields, buildMinigameQueue(selected, totalRounds), cfg.shop > 0)
               }}
             >
               ▶️ SPIEL STARTEN!

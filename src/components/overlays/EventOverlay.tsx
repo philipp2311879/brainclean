@@ -40,7 +40,7 @@ function CrystalRainAnim() {
   )
 }
 
-function CrystalRainTeams({ teams }: { teams: Team[] }) {
+function CrystalRainTeams({ teams, amount }: { teams: Team[]; amount: number }) {
   return (
     <div className="flex flex-wrap gap-2 justify-center mb-4">
       {teams.map((t) => (
@@ -53,7 +53,7 @@ function CrystalRainTeams({ teams }: { teams: Team[] }) {
           style={{ borderColor: '#10b981', background: '#f0fdf4' }}
         >
           <EvtAvatar team={t} size={28} />
-          <span className="font-display text-lg text-[#10b981]">+50 💎</span>
+          <span className="font-display text-lg text-[#10b981]">+{amount} 💎</span>
         </motion.div>
       ))}
     </div>
@@ -268,7 +268,7 @@ export function EventOverlay({ event, onConfirm }: EventOverlayProps) {
           </h2>
 
           {/* Per-event content */}
-          {event.id === 'crystal_rain'  && <CrystalRainTeams teams={teams} />}
+          {event.id === 'crystal_rain'  && <CrystalRainTeams teams={teams} amount={(event.effect as any).amount ?? 100} />}
           {event.id === 'revolution'    && <RevolutionAnim teams={teams} />}
           {event.id === 'earthquake'    && <EarthquakeAnim teams={teams} />}
           {event.id === 'tax'           && <TaxAnim teams={teams} />}
